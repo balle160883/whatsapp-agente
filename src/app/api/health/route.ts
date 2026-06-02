@@ -9,9 +9,9 @@ export async function GET() {
       { status: "healthy", timestamp: new Date().toISOString() },
       { status: 200 }
     );
-  } catch {
+  } catch (error: any) {
     return NextResponse.json(
-      { status: "unhealthy", timestamp: new Date().toISOString() },
+      { status: "unhealthy", error: error.message || String(error), timestamp: new Date().toISOString() },
       { status: 503 }
     );
   }
