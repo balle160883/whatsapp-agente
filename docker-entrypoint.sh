@@ -5,7 +5,7 @@ echo "🚀 Starting WhatsApp Agent SaaS..."
 
 # Run database migrations
 echo "📦 Running database migrations..."
-npx prisma migrate deploy || echo "❌ Prisma migration failed but bypassing crash..."
+npx prisma migrate deploy
 
-echo "✅ Starting Next.js server..."
+echo "✅ Migrations complete. Starting Next.js server..."
 exec node server.js
