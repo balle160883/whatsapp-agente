@@ -1,0 +1,41 @@
+# Node
+node_modules
+npm-debug.log*
+.npm
+
+# Next.js
+.next
+out
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# CI/CD
+.github
+
+# Dev tools
+.eslintrc*
+*.md
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+coverage
+__tests__
+*.test.ts
+*.spec.ts
