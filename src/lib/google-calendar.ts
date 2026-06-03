@@ -154,6 +154,10 @@ export class CalendarService {
   }
 }
 
+const getAppUrl = () => {
+  return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+};
+
 export async function getCalendarService(
   organizationId: string
 ): Promise<CalendarService | null> {
@@ -166,7 +170,7 @@ export async function getCalendarService(
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google-calendar/callback`
+    `${getAppUrl()}/api/integrations/google-calendar/callback`
   ) as OAuth2Client;
 
   oauth2Client.setCredentials({
@@ -196,7 +200,7 @@ export function getOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google-calendar/callback`
+    `${getAppUrl()}/api/integrations/google-calendar/callback`
   );
 }
 
