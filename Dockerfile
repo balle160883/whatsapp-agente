@@ -19,21 +19,20 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
-
-# Build the Next.js app
+# Set placeholder env vars for build time only
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=4096"
-
-# Set placeholder env vars for build time only
 ENV DATABASE_URL="postgresql://placeholder:placeholder@placeholder:5432/placeholder"
 ENV NEXTAUTH_SECRET="placeholder-secret-for-build-time-only"
 ENV NEXTAUTH_URL="http://localhost:3000"
 ENV ENCRYPTION_KEY="0000000000000000000000000000000000000000000000000000000000000000"
 ENV NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build the Next.js app
 RUN npm run build
 
 # ─────────────────────────────────────────────────────────────────────────────
