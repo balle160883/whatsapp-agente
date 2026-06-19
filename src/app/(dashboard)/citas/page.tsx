@@ -283,7 +283,7 @@ export default function CitasPage() {
           style={{ textAlign: 'center', padding: '5rem 2rem', color: 'var(--color-text-muted)' }}
         >
           <CalendarX size={48} style={{ marginBottom: '1rem', opacity: 0.3 }} />
-          <p>No hay citas {filter !== 'all' ? 'con este estado' : 'registradas'}</p>
+          <p>No hay citas {statusFilter !== 'all' ? 'con este estado' : 'registradas'}</p>
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

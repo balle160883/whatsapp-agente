@@ -7,7 +7,7 @@ import { es } from 'date-fns/locale'
 export async function sendAppointmentReminder(appointmentId: string) {
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    include: { contact: true, organization: { include: { whatsappConfig: true, agentConfig: true } },
+    include: { contact: true, organization: { include: { whatsappConfig: true, agentConfig: true } } },
   })
 
   if (!appointment || !appointment.organization.whatsappConfig) {

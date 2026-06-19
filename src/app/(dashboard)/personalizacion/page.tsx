@@ -271,7 +271,7 @@ export default function PersonalizacionPage() {
                   onChange={(e) => setReminderMessage(e.target.value)}
                 />
                 <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
-                  Variables disponibles: <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{{'{{nombre}}'}}</code>, <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{{'{{servicio}}'}}</code>, <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{{'{{fecha_hora}}'}}</code>
+                  Variables disponibles: <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{"{{nombre}}"}</code>, <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{"{{servicio}}"}</code>, <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{"{{fecha_hora}}"}</code>
                 </p>
               </div>
             </div>
