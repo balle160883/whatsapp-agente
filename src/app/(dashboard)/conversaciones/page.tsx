@@ -2,7 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { ChatTeardropDots, MagnifyingGlass, Robot, User, FunnelSimple, DownloadSimple } from '@phosphor-icons/react'
+import {
+  ChatTeardropDots,
+  MagnifyingGlass,
+  Robot,
+  User,
+  FunnelSimple,
+  DownloadSimple,
+} from '@phosphor-icons/react'
 import { format, parseISO, isToday, isYesterday } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -87,10 +94,19 @@ export default function ConversacionesPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div
+        style={{
+          marginBottom: '2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+        }}
+      >
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>Conversaciones</h1>
-          <p style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem', fontSize: '0.875rem' }}>
+          <p
+            style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem', fontSize: '0.875rem' }}
+          >
             {conversations.length} conversación{conversations.length !== 1 ? 'es' : ''} activa
             {conversations.length !== 1 ? 's' : ''}
           </p>
@@ -98,18 +114,18 @@ export default function ConversacionesPage() {
         <button
           onClick={async () => {
             try {
-              const res = await fetch('/api/conversations/export');
-              if (!res.ok) throw new Error('Error al exportar');
-              const blob = await res.blob();
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `conversaciones-${new Date().toISOString().split('T')[0]}.csv`;
-              a.click();
-              window.URL.revokeObjectURL(url);
+              const res = await fetch('/api/conversations/export')
+              if (!res.ok) throw new Error('Error al exportar')
+              const blob = await res.blob()
+              const url = window.URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `conversaciones-${new Date().toISOString().split('T')[0]}.csv`
+              a.click()
+              window.URL.revokeObjectURL(url)
             } catch (error) {
-              console.error('Error al exportar:', error);
-              alert('Error al exportar el CSV');
+              console.error('Error al exportar:', error)
+              alert('Error al exportar el CSV')
             }
           }}
           className="btn btn-secondary"

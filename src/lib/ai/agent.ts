@@ -8,6 +8,7 @@ import { AntigravityProvider } from '@/lib/ai/providers/antigravity'
 import { CustomProvider } from '@/lib/ai/providers/custom'
 import { createAuditEvent, AUDIT_ACTIONS } from '@/lib/audit'
 import { addMinutes, parseISO } from 'date-fns'
+import { getRagContext } from '@/lib/rag'
 
 interface AgentContext {
   organizationId: string
@@ -192,6 +193,9 @@ export async function runAgent(ctx: AgentContext, userMessage: string): Promise<
     return 'Lo siento, el agente no está configurado.'
   }
 
+  // Retrieve RAG context if applicable
+  const { contextText } = await getRagContext(ctx.organizationId, userMessage)
+
   // Build system prompt with organization context
   const systemPrompt = `${config.systemPrompt}
 
@@ -199,7 +203,7 @@ Tono: ${config.tone}
 Servicios disponibles: ${JSON.stringify(config.services)}
 Horarios de atención: ${JSON.stringify(config.businessHours)}
 Preguntas frecuentes: ${JSON.stringify(config.faqs)}
-Políticas: ${JSON.stringify(config.policies)}
+Políticas: ${JSON.stringify(config.policies)}${contextText ? `\n${contextText}` : ''}
 
 REGLAS IMPORTANTES:
 1. Responde SIEMPRE en español.

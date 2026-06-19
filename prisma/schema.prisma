@@ -88,6 +88,7 @@ model Organization {
   appointments        Appointment[]
   auditEvents         AuditEvent[]
   feedbacks           Feedback[]
+  knowledgeBases      KnowledgeBase[]
 
   @@map("organizations")
 }
@@ -366,4 +367,22 @@ model Feedback {
   @@index([contactId])
   @@index([appointmentId])
   @@map("feedbacks")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KNOWLEDGE BASE (RAG documents)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model KnowledgeBase {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  title          String
+  content        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("knowledge_bases")
 }

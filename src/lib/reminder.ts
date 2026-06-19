@@ -7,7 +7,10 @@ import { es } from 'date-fns/locale'
 export async function sendAppointmentReminder(appointmentId: string) {
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
-    include: { contact: true, organization: { include: { whatsappConfig: true, agentConfig: true } } },
+    include: {
+      contact: true,
+      organization: { include: { whatsappConfig: true, agentConfig: true } },
+    },
   })
 
   if (!appointment || !appointment.organization.whatsappConfig) {
@@ -27,7 +30,9 @@ export async function sendAppointmentReminder(appointmentId: string) {
   )
 
   // Get custom message from agent config or use default
-  const messageTemplate = appointment.organization.agentConfig?.reminderMessage || `¡Hola {{nombre}}! 📅
+  const messageTemplate =
+    appointment.organization.agentConfig?.reminderMessage ||
+    `¡Hola {{nombre}}! 📅
 
 Te recordamos tu cita:
 

@@ -7,6 +7,7 @@ import { AntigravityProvider } from '@/lib/ai/providers/antigravity'
 import { CustomProvider } from '@/lib/ai/providers/custom'
 import { AGENT_TOOLS } from '@/lib/ai/tools'
 import type { ChatMessage } from '@/lib/ai/ai-provider'
+import { getRagContext } from '@/lib/rag'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -42,10 +43,13 @@ export async function POST(req: NextRequest) {
       provider = new OpenAIProvider(process.env.OPENAI_API_KEY ?? '')
   }
 
+  // Retrieve RAG context if applicable
+  const { contextText } = await getRagContext(organizationId, body.message)
+
   const messages: ChatMessage[] = [
     {
       role: 'system',
-      content: `${config.systemPrompt}\n\nEsto es una sesión de prueba sandbox. No ejecutes herramientas reales.`,
+      content: `${config.systemPrompt}\n\nTono: ${config.tone}\nServicios: ${JSON.stringify(config.services)}\nPreguntas frecuentes: ${JSON.stringify(config.faqs)}\nPolíticas: ${JSON.stringify(config.policies)}${contextText ? `\n${contextText}` : ''}\n\nEsto es una sesión de prueba sandbox. No ejecutes herramientas reales.`,
     },
     ...(body.history ?? []).map((m) => ({
       role: m.role as 'user' | 'assistant',

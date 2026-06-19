@@ -58,10 +58,9 @@ export async function GET() {
     ]
   })
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(escapeCsv).join(',')),
-  ].join('\n')
+  const csvContent = [headers.join(','), ...rows.map((row) => row.map(escapeCsv).join(','))].join(
+    '\n'
+  )
 
   return new NextResponse(csvContent, {
     status: 200,

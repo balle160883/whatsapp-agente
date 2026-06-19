@@ -94,15 +94,16 @@ export async function processIncomingMessage(msg: IncomingMessage): Promise<void
   // Analyze sentiment and update conversation
   const sentimentResult = analyzeSentiment(msg.text)
   const isNegative = sentimentResult.sentiment === 'NEGATIVE'
-  
+
   let transferToHuman = false
   let humanHandoffMessage = ''
-  
+
   if (isNegative && conversation.status !== 'HUMAN_HANDOFF') {
     transferToHuman = true
-    humanHandoffMessage = 'Lo siento que estés teniendo una mala experiencia. He transferido tu conversación a un agente humano que te atenderá pronto.'
+    humanHandoffMessage =
+      'Lo siento que estés teniendo una mala experiencia. He transferido tu conversación a un agente humano que te atenderá pronto.'
   }
-  
+
   await prisma.conversation.update({
     where: { id: conversation.id },
     data: {

@@ -56,10 +56,9 @@ export async function GET() {
     new Date(f.createdAt).toLocaleDateString('es-ES'),
   ])
 
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(escapeCsv).join(',')),
-  ].join('\n')
+  const csvContent = [headers.join(','), ...rows.map((row) => row.map(escapeCsv).join(','))].join(
+    '\n'
+  )
 
   return new NextResponse(csvContent, {
     status: 200,

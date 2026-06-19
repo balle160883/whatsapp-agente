@@ -11,6 +11,7 @@ import {
   CircleNotch,
   CheckCircle,
   PaperPlaneTilt,
+  BookOpen,
 } from '@phosphor-icons/react'
 
 interface FAQ {
@@ -56,6 +57,59 @@ export default function PersonalizacionPage() {
   const [sandboxInput, setSandboxInput] = useState('')
   const [sandboxLoading, setSandboxLoading] = useState(false)
 
+  // Knowledge Base (RAG Documents)
+  const [documents, setDocuments] = useState<Array<{ id: string; title: string; content: string }>>(
+    []
+  )
+  const [newDocTitle, setNewDocTitle] = useState('')
+  const [newDocContent, setNewDocContent] = useState('')
+  const [addingDoc, setAddingDoc] = useState(false)
+
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/knowledge-base')
+      const data = (await res.json()) as { documents: any[] }
+      setDocuments(data.documents ?? [])
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
+
+  async function addDocument() {
+    if (!newDocTitle.trim() || !newDocContent.trim()) return
+    setAddingDoc(true)
+    try {
+      const res = await fetch('/api/knowledge-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newDocTitle, content: newDocContent }),
+      })
+      if (res.ok) {
+        setNewDocTitle('')
+        setNewDocContent('')
+        await fetchDocuments()
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setAddingDoc(false)
+    }
+  }
+
+  async function deleteDocument(id: string) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este documento?')) return
+    try {
+      const res = await fetch(`/api/knowledge-base?id=${id}`, {
+        method: 'DELETE',
+      })
+      if (res.ok) {
+        await fetchDocuments()
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const fetchConfig = useCallback(async () => {
     try {
       const res = await fetch('/api/agent-config')
@@ -76,7 +130,8 @@ export default function PersonalizacionPage() {
 
   useEffect(() => {
     void fetchConfig()
-  }, [fetchConfig])
+    void fetchDocuments()
+  }, [fetchConfig, fetchDocuments])
 
   async function saveConfig() {
     setSaving(true)
@@ -85,7 +140,14 @@ export default function PersonalizacionPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemPrompt: prompt, tone, services, faqs, reminderMinutes, npsSurveyMessage, reminderMessage }),
+          systemPrompt: prompt,
+          tone,
+          services,
+          faqs,
+          reminderMinutes,
+          npsSurveyMessage,
+          reminderMessage,
+        }),
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -254,7 +316,13 @@ export default function PersonalizacionPage() {
                   value={npsSurveyMessage}
                   onChange={(e) => setNpsSurveyMessage(e.target.value)}
                 />
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--color-text-muted)',
+                    marginTop: '0.5rem',
+                  }}
+                >
                   Este mensaje se envía después de completar una cita para solicitar feedback.
                 </p>
               </div>
@@ -270,8 +338,43 @@ export default function PersonalizacionPage() {
                   value={reminderMessage}
                   onChange={(e) => setReminderMessage(e.target.value)}
                 />
-                <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.5rem' }}>
-                  Variables disponibles: <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{"{{nombre}}"}</code>, <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{"{{servicio}}"}</code>, <code style={{ background: 'var(--color-bg-elevated)', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>{"{{fecha_hora}}"}</code>
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--color-text-muted)',
+                    marginTop: '0.5rem',
+                  }}
+                >
+                  Variables disponibles:{' '}
+                  <code
+                    style={{
+                      background: 'var(--color-bg-elevated)',
+                      padding: '0.125rem 0.375rem',
+                      borderRadius: '0.25rem',
+                    }}
+                  >
+                    {'{{nombre}}'}
+                  </code>
+                  ,{' '}
+                  <code
+                    style={{
+                      background: 'var(--color-bg-elevated)',
+                      padding: '0.125rem 0.375rem',
+                      borderRadius: '0.25rem',
+                    }}
+                  >
+                    {'{{servicio}}'}
+                  </code>
+                  ,{' '}
+                  <code
+                    style={{
+                      background: 'var(--color-bg-elevated)',
+                      padding: '0.125rem 0.375rem',
+                      borderRadius: '0.25rem',
+                    }}
+                  >
+                    {'{{fecha_hora}}'}
+                  </code>
                 </p>
               </div>
             </div>
@@ -449,6 +552,150 @@ export default function PersonalizacionPage() {
                   }}
                 >
                   Sin FAQs. Agrega preguntas frecuentes para mejorar al agente.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Base de Conocimiento (RAG) */}
+          <div className="card">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <BookOpen size={18} color="#6172f3" weight="duotone" />
+              <span style={{ fontWeight: 600 }}>Base de Conocimiento (RAG)</span>
+            </div>
+
+            <p
+              style={{
+                fontSize: '0.8125rem',
+                color: 'var(--color-text-muted)',
+                marginBottom: '1.25rem',
+              }}
+            >
+              Sube artículos o documentos informativos sobre tu negocio. El Agente de IA usará esta
+              información para responder consultas complejas.
+            </p>
+
+            {/* Add Document Form */}
+            <div
+              style={{
+                background: 'var(--color-bg-elevated)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                border: '1px solid var(--color-border)',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--color-text-secondary)',
+                  display: 'block',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                Agregar nuevo documento
+              </span>
+              <input
+                className="input"
+                placeholder="Título del documento (ej. Políticas de cancelación)..."
+                value={newDocTitle}
+                onChange={(e) => setNewDocTitle(e.target.value)}
+                style={{ marginBottom: '0.75rem' }}
+              />
+              <textarea
+                className="input"
+                placeholder="Escribe el contenido detallado de soporte aquí..."
+                value={newDocContent}
+                onChange={(e) => setNewDocContent(e.target.value)}
+                style={{ minHeight: 90, marginBottom: '0.75rem' }}
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={addDocument}
+                disabled={addingDoc || !newDocTitle.trim() || !newDocContent.trim()}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                {addingDoc ? (
+                  <CircleNotch size={14} style={{ animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <>
+                    <Plus size={14} /> Guardar documento
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Documents List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--color-text-muted)',
+                  display: 'block',
+                }}
+              >
+                Documentos subidos ({documents.length})
+              </span>
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  style={{
+                    background: 'var(--color-bg-elevated)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.875rem',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: '0.375rem',
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{doc.title}</span>
+                    <button
+                      onClick={() => deleteDocument(doc.id)}
+                      className="btn btn-ghost btn-sm"
+                      style={{ padding: '0.125rem 0.25rem', color: '#ef4444' }}
+                    >
+                      <Trash size={14} />
+                    </button>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: '0.8125rem',
+                      color: 'var(--color-text-secondary)',
+                      margin: 0,
+                      whiteSpace: 'pre-wrap',
+                      maxHeight: 120,
+                      overflowY: 'auto',
+                    }}
+                  >
+                    {doc.content}
+                  </p>
+                </div>
+              ))}
+              {documents.length === 0 && (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '1.5rem',
+                    color: 'var(--color-text-muted)',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  No hay documentos guardados. Agrega textos de soporte para habilitar RAG.
                 </div>
               )}
             </div>

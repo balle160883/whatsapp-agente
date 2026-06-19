@@ -35,7 +35,9 @@ export async function sendFeedbackSurvey(
   const accessToken = safeDecrypt(waConfig.accessTokenEnc)
   if (!accessToken) throw new Error('Cannot decrypt access token')
 
-  const surveyText = agentConfig?.npsSurveyMessage || `¡Hola! Esperamos que hayas tenido una excelente experiencia. 🌟
+  const surveyText =
+    agentConfig?.npsSurveyMessage ||
+    `¡Hola! Esperamos que hayas tenido una excelente experiencia. 🌟
 
 Por favor, califica tu servicio de 0 a 5 estrellas:
 

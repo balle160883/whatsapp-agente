@@ -118,7 +118,7 @@ export default function CitasPage() {
   )
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
+    setFilters((prev) => ({ ...prev, [key]: value }))
   }
 
   const clearFilters = () => {
@@ -137,41 +137,48 @@ export default function CitasPage() {
   }, [fetchAppointments])
 
   // Apply client-side status filter for the stats buttons
-  const filtered = statusFilter === 'all' ? appointments : appointments.filter((a) => a.status === statusFilter)
+  const filtered =
+    statusFilter === 'all' ? appointments : appointments.filter((a) => a.status === statusFilter)
 
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div
+        style={{
+          marginBottom: '2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+        }}
+      >
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>Citas</h1>
-          <p style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem', fontSize: '0.875rem' }}>
+          <p
+            style={{ color: 'var(--color-text-muted)', marginTop: '0.25rem', fontSize: '0.875rem' }}
+          >
             Gestión de citas sincronizadas con Google Calendar
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="btn btn-secondary"
-          >
+          <button onClick={() => setShowFilters(!showFilters)} className="btn btn-secondary">
             <FunnelSimple size={16} />
             Filtros
           </button>
           <button
             onClick={async () => {
               try {
-                const res = await fetch('/api/appointments/export');
-                if (!res.ok) throw new Error('Error al exportar');
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `citas-${new Date().toISOString().split('T')[0]}.csv`;
-                a.click();
-                window.URL.revokeObjectURL(url);
+                const res = await fetch('/api/appointments/export')
+                if (!res.ok) throw new Error('Error al exportar')
+                const blob = await res.blob()
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `citas-${new Date().toISOString().split('T')[0]}.csv`
+                a.click()
+                window.URL.revokeObjectURL(url)
               } catch (error) {
-                console.error('Error al exportar:', error);
-                alert('Error al exportar el CSV');
+                console.error('Error al exportar:', error)
+                alert('Error al exportar el CSV')
               }
             }}
             className="btn btn-secondary"
@@ -185,7 +192,14 @@ export default function CitasPage() {
       {/* Filters Section */}
       {showFilters && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+            }}
+          >
             <span style={{ fontWeight: 600 }}>Filtros</span>
             <button
               onClick={clearFilters}
@@ -196,9 +210,22 @@ export default function CitasPage() {
               Limpiar
             </button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem',
+            }}
+          >
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  marginBottom: '0.5rem',
+                }}
+              >
                 Servicio
               </label>
               <input
@@ -210,7 +237,14 @@ export default function CitasPage() {
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  marginBottom: '0.5rem',
+                }}
+              >
                 Fecha desde
               </label>
               <input
@@ -221,7 +255,14 @@ export default function CitasPage() {
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  marginBottom: '0.5rem',
+                }}
+              >
                 Fecha hasta
               </label>
               <input

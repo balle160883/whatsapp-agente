@@ -1,7 +1,18 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 import { FunnelSimple, X } from '@phosphor-icons/react'
 
 interface FeedbackItem {
@@ -87,7 +98,7 @@ export default function FeedbackPage() {
   }, [fetchData])
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
+    setFilters((prev) => ({ ...prev, [key]: value }))
   }
 
   const clearFilters = () => {
@@ -139,10 +150,10 @@ export default function FeedbackPage() {
           <h1 className="text-2xl font-bold text-gray-900">Feedback y NPS</h1>
           <p className="text-gray-600">Monitorea la satisfacción de tus clientes</p>
         </div>
-        <div className="mt-4 md:mt-0 flex flex-wrap gap-3">
+        <div className="mt-4 flex flex-wrap gap-3 md:mt-0">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-200 px-4 py-2 text-gray-800 hover:bg-gray-300 transition"
+            className="inline-flex items-center gap-2 rounded-lg bg-gray-200 px-4 py-2 text-gray-800 transition hover:bg-gray-300"
           >
             <FunnelSimple size={16} />
             <span>Filtros</span>
@@ -150,21 +161,21 @@ export default function FeedbackPage() {
           <button
             onClick={async () => {
               try {
-                const res = await fetch('/api/feedback/export');
-                if (!res.ok) throw new Error('Error al exportar');
-                const blob = await res.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `feedbacks-${new Date().toISOString().split('T')[0]}.csv`;
-                a.click();
-                window.URL.revokeObjectURL(url);
+                const res = await fetch('/api/feedback/export')
+                if (!res.ok) throw new Error('Error al exportar')
+                const blob = await res.blob()
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `feedbacks-${new Date().toISOString().split('T')[0]}.csv`
+                a.click()
+                window.URL.revokeObjectURL(url)
               } catch (error) {
-                console.error('Error al exportar:', error);
-                alert('Error al exportar el CSV');
+                console.error('Error al exportar:', error)
+                alert('Error al exportar el CSV')
               }
             }}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
           >
             <span>📥</span>
             <span>Exportar CSV</span>
@@ -174,20 +185,20 @@ export default function FeedbackPage() {
 
       {/* Filters Section */}
       {showFilters && (
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="flex justify-between items-center mb-4">
+        <div className="rounded-lg border border-gray-200 bg-white p-6 shadow">
+          <div className="mb-4 flex items-center justify-between">
             <h3 className="text-lg font-semibold">Filtros</h3>
             <button
               onClick={clearFilters}
-              className="text-sm text-red-600 hover:text-red-800 flex items-center gap-1"
+              className="flex items-center gap-1 text-sm text-red-600 hover:text-red-800"
             >
               <X size={14} />
               Limpiar filtros
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Estado</label>
               <select
                 className="w-full rounded-md border border-gray-300 px-3 py-2"
                 value={filters.status}
@@ -200,7 +211,9 @@ export default function FeedbackPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Calificación mínima</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Calificación mínima
+              </label>
               <input
                 type="number"
                 min="0"
@@ -212,7 +225,9 @@ export default function FeedbackPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Calificación máxima</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Calificación máxima
+              </label>
               <input
                 type="number"
                 min="0"
@@ -224,7 +239,7 @@ export default function FeedbackPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Categoría NPS</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Categoría NPS</label>
               <select
                 className="w-full rounded-md border border-gray-300 px-3 py-2"
                 value={filters.npsCategory}
@@ -237,7 +252,7 @@ export default function FeedbackPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sentimiento</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Sentimiento</label>
               <select
                 className="w-full rounded-md border border-gray-300 px-3 py-2"
                 value={filters.sentiment}
@@ -250,7 +265,7 @@ export default function FeedbackPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Prioridad alta</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Prioridad alta</label>
               <select
                 className="w-full rounded-md border border-gray-300 px-3 py-2"
                 value={filters.isHighPriority}
@@ -262,7 +277,7 @@ export default function FeedbackPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha desde</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Fecha desde</label>
               <input
                 type="date"
                 className="w-full rounded-md border border-gray-300 px-3 py-2"
@@ -271,7 +286,7 @@ export default function FeedbackPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha hasta</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Fecha hasta</label>
               <input
                 type="date"
                 className="w-full rounded-md border border-gray-300 px-3 py-2"
@@ -341,7 +356,7 @@ export default function FeedbackPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* NPS Distribution Chart */}
           <div className="rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Distribución NPS</h3>
+            <h3 className="mb-4 text-lg font-medium text-gray-900">Distribución NPS</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -375,18 +390,20 @@ export default function FeedbackPage() {
 
           {/* Score Distribution Chart */}
           <div className="rounded-lg bg-white p-6 shadow">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Distribución de Calificaciones</h3>
+            <h3 className="mb-4 text-lg font-medium text-gray-900">
+              Distribución de Calificaciones
+            </h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={(() => {
-                    const counts = [0, 0, 0, 0, 0, 0]; // 0-5 stars
-                    feedbacks.forEach(item => {
+                    const counts = [0, 0, 0, 0, 0, 0] // 0-5 stars
+                    feedbacks.forEach((item) => {
                       if (item.score !== null) {
-                        counts[item.score]++;
+                        counts[item.score]++
                       }
-                    });
-                    return counts.map((count, score) => ({ score: `${score}`, count }));
+                    })
+                    return counts.map((count, score) => ({ score: `${score}`, count }))
                   })()}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
