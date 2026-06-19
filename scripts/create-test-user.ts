@@ -1,5 +1,7 @@
-import { prisma } from '../src/lib/prisma'
+import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+
+const prisma = new PrismaClient()
 
 async function main() {
   console.log('🔍 Buscando usuarios existentes...')

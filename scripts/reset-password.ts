@@ -1,5 +1,7 @@
-import { prisma } from '../src/lib/prisma'
+import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+
+const prisma = new PrismaClient()
 
 async function main() {
   const targetEmail = 'ing.ballesteros16@gmail.com' // Tu email
