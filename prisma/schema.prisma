@@ -1,0 +1,369 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  AGENT
+}
+
+enum AIProviderType {
+  OPENAI
+  ANTIGRAVITY
+  CUSTOM
+}
+
+enum ConversationStatus {
+  OPEN
+  CLOSED
+  HUMAN_HANDOFF
+}
+
+enum MessageDirection {
+  INCOMING
+  OUTGOING
+}
+
+enum MessageSender {
+  CLIENT
+  BOT
+  HUMAN
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum FeedbackStatus {
+  PENDING
+  SENT
+  RESPONDED
+}
+
+enum NpsCategory {
+  PROMOTER
+  PASSIVE
+  DETRACTOR
+}
+
+enum Sentiment {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORGANIZATION (tenant root)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users               User[]
+  whatsappConfig      WhatsAppConfig?
+  googleCalendarConfig GoogleCalendarConfig?
+  agentConfig         AgentConfig?
+  contacts            Contact[]
+  conversations       Conversation[]
+  messages            Message[]
+  appointments        Appointment[]
+  auditEvents         AuditEvent[]
+  feedbacks           Feedback[]
+
+  @@map("organizations")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  email          String
+  hashedPassword String   @map("hashed_password")
+  role           UserRole @default(AGENT)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@index([email])
+  @@index([organizationId])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WHATSAPP CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model WhatsAppConfig {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @unique @map("organization_id") @db.Uuid
+  phoneNumberId   String   @map("phone_number_id")
+  wabaId          String   @map("waba_id")
+  accessTokenEnc  String   @map("access_token_enc")   // AES-256-GCM encrypted
+  verifyToken     String   @map("verify_token")
+  appSecretEnc    String   @map("app_secret_enc")     // AES-256-GCM encrypted
+  isActive        Boolean  @default(false) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([phoneNumberId])
+  @@map("whatsapp_configs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GOOGLE CALENDAR CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model GoogleCalendarConfig {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @unique @map("organization_id") @db.Uuid
+  accessTokenEnc    String?   @map("access_token_enc")   // AES-256-GCM encrypted
+  refreshTokenEnc   String?   @map("refresh_token_enc")  // AES-256-GCM encrypted
+  expiryDate        DateTime? @map("expiry_date")
+  calendarId        String?   @map("calendar_id")
+  calendarName      String?   @map("calendar_name")
+  isConnected       Boolean   @default(false) @map("is_connected")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("google_calendar_configs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AGENT CONFIG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AgentConfig {
+  id               String         @id @default(uuid()) @db.Uuid
+  organizationId   String         @unique @map("organization_id") @db.Uuid
+  provider         AIProviderType @default(OPENAI)
+  apiKeyEnc        String?        @map("api_key_enc")  // AES-256-GCM encrypted
+  customEndpoint   String?        @map("custom_endpoint")
+  customModel      String?        @map("custom_model")
+  systemPrompt     String         @default("Eres un asistente de atención al cliente amigable y profesional.") @map("system_prompt") @db.Text
+  tone             String         @default("profesional")
+  // Business hours as JSON: { mon: [9,17], tue: [9,17], ... }
+  businessHours    Json           @default("{}") @map("business_hours")
+  // Services as JSON array: ["Consulta", "Cita médica", ...]
+  services         Json           @default("[]")
+  // FAQs as JSON array: [{ q: "...", a: "..." }, ...]
+  faqs             Json           @default("[]")
+  // Policies as JSON: { cancellation: "...", payment: "...", ... }
+  policies         Json           @default("{}")
+  botActive        Boolean        @default(true) @map("bot_active")
+  // Reminder settings: minutes before appointment to send reminder
+  reminderMinutes  Int            @default(60) @map("reminder_minutes")
+  // Customizable messages
+  npsSurveyMessage String         @default("¡Hola! Esperamos que hayas tenido una excelente experiencia. 🌟\n\nPor favor, califica tu servicio de 0 a 5 estrellas:\n\n1️⃣ - Muy malo\n2️⃣ - Malo\n3️⃣ - Regular\n4️⃣ - Bueno\n5️⃣ - Excelente\n\nTambién puedes dejar un comentario si lo deseas. ¡Gracias por tu feedback!") @map("nps_survey_message") @db.Text
+  reminderMessage  String         @default("¡Hola {{nombre}}! 📅\n\nTe recordamos tu cita:\n\nServicio: {{servicio}}\nFecha y hora: {{fecha_hora}}\n\n¿Quieres confirmar tu asistencia, reprogramar o cancelar?\n\n1️⃣ Confirmar\n2️⃣ Reprogramar\n3️⃣ Cancelar") @map("reminder_message") @db.Text
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("agent_configs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTACT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  phone          String
+  fullName       String?   @map("full_name")
+  isNewPatient   Boolean   @default(true) @map("is_new_patient")
+  metadata       Json      @default("{}")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  appointments  Appointment[]
+  feedbacks     Feedback[]
+
+  @@unique([organizationId, phone])
+  @@index([organizationId])
+  @@index([phone])
+  @@map("contacts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONVERSATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Conversation {
+  id               String             @id @default(uuid()) @db.Uuid
+  organizationId String             @map("organization_id") @db.Uuid
+  contactId      String             @map("contact_id") @db.Uuid
+  status         ConversationStatus @default(OPEN)
+  botActive      Boolean            @default(true) @map("bot_active")
+  sentiment      Sentiment?          @default(NEUTRAL)
+  isHighPriority Boolean            @default(false) @map("is_high_priority")
+  lastMessageAt  DateTime?          @map("last_message_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact      Contact      @relation(fields: [contactId], references: [id])
+  messages     Message[]
+  appointments Appointment[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, isHighPriority])
+  @@index([organizationId, lastMessageAt(sort: Desc)])
+  @@index([contactId])
+  @@map("conversations")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MESSAGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Message {
+  id             String          @id @default(uuid()) @db.Uuid
+  organizationId String          @map("organization_id") @db.Uuid
+  conversationId String          @map("conversation_id") @db.Uuid
+  // WhatsApp message ID for idempotency
+  externalId     String?         @unique @map("external_id")
+  direction      MessageDirection
+  sender         MessageSender
+  content        String          @db.Text
+  mediaUrl       String?         @map("media_url")
+  mediaType      String?         @map("media_type")
+  isRead         Boolean         @default(false) @map("is_read")
+  metadata       Json            @default("{}")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([externalId])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APPOINTMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Appointment {
+  id               String            @id @default(uuid()) @db.Uuid
+  organizationId   String            @map("organization_id") @db.Uuid
+  contactId        String            @map("contact_id") @db.Uuid
+  conversationId   String?           @map("conversation_id") @db.Uuid
+  service          String
+  startsAt         DateTime          @map("starts_at")
+  endsAt           DateTime          @map("ends_at")
+  status           AppointmentStatus @default(SCHEDULED)
+  googleEventId    String?           @map("google_event_id")
+  googleCalendarId String?           @map("google_calendar_id")
+  notes            String?           @db.Text
+  reminderSent     Boolean           @default(false) @map("reminder_sent")
+  reminderSentAt   DateTime?         @map("reminder_sent_at")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact      Contact       @relation(fields: [contactId], references: [id])
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  feedback     Feedback?
+
+  @@index([organizationId])
+  @@index([organizationId, startsAt])
+  @@index([organizationId, status])
+  @@index([contactId])
+  @@map("appointments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT EVENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String?  @map("user_id") @db.Uuid
+  action         String
+  entity         String?
+  entityId       String?  @map("entity_id")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  details        Json     @default("{}")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([userId])
+  @@map("audit_events")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEEDBACK & NPS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Feedback {
+  id               String         @id @default(uuid()) @db.Uuid
+  organizationId   String         @map("organization_id") @db.Uuid
+  contactId        String         @map("contact_id") @db.Uuid
+  appointmentId    String?        @unique @map("appointment_id") @db.Uuid
+  status           FeedbackStatus @default(PENDING)
+  score            Int?           // 0-5 estrellas
+  comment          String?        @db.Text
+  npsCategory      NpsCategory?   @map("nps_category")
+  sentiment        String?        // "positive", "neutral", "negative"
+  isHighPriority   Boolean        @default(false) @map("is_high_priority")
+  sentAt           DateTime?      @map("sent_at")
+  respondedAt      DateTime?      @map("responded_at")
+  metadata         Json           @default("{}")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contact      Contact      @relation(fields: [contactId], references: [id])
+  appointment  Appointment? @relation(fields: [appointmentId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, isHighPriority])
+  @@index([contactId])
+  @@index([appointmentId])
+  @@map("feedbacks")
+}
