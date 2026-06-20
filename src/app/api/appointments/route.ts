@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { sendFeedbackSurvey } from '@/lib/feedback'
 import { createAuditEvent } from '@/lib/audit'
 
@@ -14,14 +15,19 @@ export async function GET(req: NextRequest) {
   const startDate = searchParams.get('startDate')
   const endDate = searchParams.get('endDate')
 
-  const where: any = { organizationId: session.user.organizationId }
+  const where: Prisma.AppointmentWhereInput = { organizationId: session.user.organizationId }
 
-  if (status) where.status = status
-  if (service) where.service = { contains: service, mode: 'insensitive' }
+  if (status) {
+    where.status = status as Prisma.AppointmentWhereInput['status']
+  }
+  if (service) {
+    where.service = { contains: service, mode: 'insensitive' }
+  }
   if (startDate || endDate) {
-    where.startsAt = {}
-    if (startDate) where.startsAt.gte = new Date(startDate)
-    if (endDate) where.startsAt.lte = new Date(endDate)
+    const dateFilter: Prisma.DateTimeFilter = {}
+    if (startDate) dateFilter.gte = new Date(startDate)
+    if (endDate) dateFilter.lte = new Date(endDate)
+    where.startsAt = dateFilter
   }
 
   const appointments = await prisma.appointment.findMany({

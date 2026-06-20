@@ -24,15 +24,19 @@ export class CustomProvider implements AIProvider {
         body: JSON.stringify({
           model: this.config.model,
           messages,
-          tools: tools.map((t) => ({
-            type: 'function',
-            function: {
-              name: t.name,
-              description: t.description,
-              parameters: t.parameters,
-            },
-          })),
-          tool_choice: 'auto',
+          ...(tools.length > 0
+            ? {
+                tools: tools.map((t) => ({
+                  type: 'function',
+                  function: {
+                    name: t.name,
+                    description: t.description,
+                    parameters: t.parameters,
+                  },
+                })),
+                tool_choice: 'auto',
+              }
+            : {}),
         }),
       })
 

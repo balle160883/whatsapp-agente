@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import type { Feedback } from '@prisma/client'
-
-function escapeCsv(value: any): string {
+function escapeCsv(value: unknown): string {
   if (value === null || value === undefined) return ''
   const stringValue = String(value)
   if (stringValue.includes('"') || stringValue.includes(',') || stringValue.includes('\n')) {
@@ -39,7 +37,7 @@ export async function GET() {
     'Fecha Creación',
   ]
 
-  const rows = feedbacks.map((f: any) => [
+  const rows = feedbacks.map((f) => [
     f.id,
     f.contact?.fullName || f.contact?.phone,
     f.contact?.phone,

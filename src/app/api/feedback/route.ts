@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { createAuditEvent, AUDIT_ACTIONS } from '@/lib/audit'
-import type { Feedback } from '@prisma/client'
+import { Prisma, Feedback } from '@prisma/client'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -18,18 +18,31 @@ export async function GET(req: NextRequest) {
   const startDate = searchParams.get('startDate')
   const endDate = searchParams.get('endDate')
 
-  const where: any = { organizationId: session.user.organizationId }
+  const where: Prisma.FeedbackWhereInput = { organizationId: session.user.organizationId }
 
-  if (status) where.status = status
-  if (minScore) where.score = { gte: parseInt(minScore, 10) }
-  if (maxScore) where.score = { ...where.score, lte: parseInt(maxScore, 10) }
-  if (npsCategory) where.npsCategory = npsCategory
-  if (sentiment) where.sentiment = sentiment
-  if (isHighPriority !== null) where.isHighPriority = isHighPriority === 'true'
+  if (status) {
+    where.status = status as Prisma.FeedbackWhereInput['status']
+  }
+  if (minScore || maxScore) {
+    const scoreFilter: Prisma.IntNullableFilter = {}
+    if (minScore) scoreFilter.gte = parseInt(minScore, 10)
+    if (maxScore) scoreFilter.lte = parseInt(maxScore, 10)
+    where.score = scoreFilter
+  }
+  if (npsCategory) {
+    where.npsCategory = npsCategory as Prisma.FeedbackWhereInput['npsCategory']
+  }
+  if (sentiment) {
+    where.sentiment = sentiment
+  }
+  if (isHighPriority !== null) {
+    where.isHighPriority = isHighPriority === 'true'
+  }
   if (startDate || endDate) {
-    where.createdAt = {}
-    if (startDate) where.createdAt.gte = new Date(startDate)
-    if (endDate) where.createdAt.lte = new Date(endDate)
+    const dateFilter: Prisma.DateTimeFilter = {}
+    if (startDate) dateFilter.gte = new Date(startDate)
+    if (endDate) dateFilter.lte = new Date(endDate)
+    where.createdAt = dateFilter
   }
 
   const feedbacks = await prisma.feedback.findMany({

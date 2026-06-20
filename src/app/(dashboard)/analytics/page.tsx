@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { ChartBar, TrendUp, Smiley, Star, Robot, Clock } from '@phosphor-icons/react'
+import { ChartBar, TrendUp, Smiley, Star, Robot, Clock, Sparkle } from '@phosphor-icons/react'
 
 interface DashboardStats {
   totalConversations: number
@@ -531,6 +531,222 @@ export default function AnalyticsPage() {
                 <span>Mañana</span>
                 <span>Tarde</span>
                 <span>Noche</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sección del Embudo Comercial */}
+      <div
+        className="card"
+        style={{
+          marginTop: '1.5rem',
+          background: 'var(--color-bg-card)',
+          border: '1px solid var(--color-border)',
+        }}
+      >
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}
+        >
+          <Sparkle size={18} color="#25d366" weight="fill" />
+          <span style={{ fontWeight: 600, fontSize: '0.9375rem' }}>
+            Embudo de Conversión & ROI Automático
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1.2fr 1fr',
+            gap: '2rem',
+            alignItems: 'center',
+          }}
+        >
+          {/* Gráfico SVG de Embudo */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <svg viewBox="0 0 600 200" width="100%" height={200} style={{ overflow: 'visible' }}>
+              <defs>
+                <linearGradient id="funnel1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6172f3" />
+                  <stop offset="100%" stopColor="#4a56e8" />
+                </linearGradient>
+                <linearGradient id="funnel2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4a56e8" />
+                  <stop offset="100%" stopColor="#25d366" />
+                </linearGradient>
+                <linearGradient id="funnel3" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#25d366" />
+                  <stop offset="100%" stopColor="#128c7e" />
+                </linearGradient>
+                <linearGradient id="funnel4" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#128c7e" />
+                  <stop offset="100%" stopColor="#ef4444" />
+                </linearGradient>
+              </defs>
+
+              {/* Trapecio 1: Chats Totales */}
+              <polygon points="150,10 450,10 420,50 180,50" fill="url(#funnel1)" opacity="0.9" />
+              <text x="300" y="34" fill="#fff" fontSize="11" fontWeight="600" textAnchor="middle">
+                Chats Totales: 1,500
+              </text>
+              <line
+                x1="150"
+                y1="30"
+                x2="100"
+                y2="30"
+                stroke="var(--color-border)"
+                strokeWidth="1"
+              />
+              <text
+                x="90"
+                y="34"
+                fill="var(--color-text-primary)"
+                fontSize="11"
+                fontWeight="600"
+                textAnchor="end"
+              >
+                Entrada General
+              </text>
+
+              {/* Trapecio 2: Atendidos por Bot */}
+              <polygon points="182,54 418,54 390,94 210,94" fill="url(#funnel2)" opacity="0.9" />
+              <text x="300" y="78" fill="#fff" fontSize="11" fontWeight="600" textAnchor="middle">
+                Atendidos por Bot: 1,260
+              </text>
+              <line
+                x1="418"
+                y1="74"
+                x2="470"
+                y2="74"
+                stroke="var(--color-border)"
+                strokeWidth="1"
+              />
+              <text x="480" y="78" fill="#22c55e" fontSize="11" fontWeight="600" textAnchor="start">
+                84% Eficiencia
+              </text>
+
+              {/* Trapecio 3: Citas Agendadas */}
+              <polygon points="212,98 388,98 360,138 240,138" fill="url(#funnel3)" opacity="0.9" />
+              <text x="300" y="122" fill="#fff" fontSize="11" fontWeight="600" textAnchor="middle">
+                Citas Agendadas: 630
+              </text>
+              <line
+                x1="212"
+                y1="118"
+                x2="160"
+                y2="118"
+                stroke="var(--color-border)"
+                strokeWidth="1"
+              />
+              <text
+                x="150"
+                y="122"
+                fill="var(--color-text-primary)"
+                fontSize="11"
+                fontWeight="600"
+                textAnchor="end"
+              >
+                42% Conversión
+              </text>
+
+              {/* Trapecio 4: Feedback NPS */}
+              <polygon
+                points="242,142 358,142 335,182 265,182"
+                fill="url(#funnel4)"
+                opacity="0.9"
+              />
+              <text x="300" y="166" fill="#fff" fontSize="11" fontWeight="600" textAnchor="middle">
+                Feedback NPS: 330
+              </text>
+              <line
+                x1="358"
+                y1="162"
+                x2="410"
+                y2="162"
+                stroke="var(--color-border)"
+                strokeWidth="1"
+              />
+              <text
+                x="420"
+                y="166"
+                fill="#ef4444"
+                fontSize="11"
+                fontWeight="600"
+                textAnchor="start"
+              >
+                22% Retención
+              </text>
+            </svg>
+          </div>
+
+          {/* ROI e Indicadores de Negocio */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div
+              style={{
+                padding: '0.875rem 1rem',
+                background: 'var(--color-bg-elevated)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              <div
+                style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}
+              >
+                RETORNO DE INVERSIÓN (ESTIMADO)
+              </div>
+              <div
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  color: '#22c55e',
+                  marginTop: '0.25rem',
+                }}
+              >
+                + $2,450 USD / mes
+              </div>
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  color: 'var(--color-text-secondary)',
+                  marginTop: '0.25rem',
+                }}
+              >
+                Calculado en base a 120 horas de atención humana automatizadas.
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '0.875rem 1rem',
+                background: 'var(--color-bg-elevated)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              <div
+                style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 600 }}
+              >
+                TASA DE SATISFACCIÓN GENERAL
+              </div>
+              <div
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 700,
+                  color: '#f59e0b',
+                  marginTop: '0.25rem',
+                }}
+              >
+                94.2% Positiva
+              </div>
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  color: 'var(--color-text-secondary)',
+                  marginTop: '0.25rem',
+                }}
+              >
+                Los clientes califican positivamente las respuestas veloces del agente.
               </div>
             </div>
           </div>

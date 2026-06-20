@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 
-function escapeCsv(value: any): string {
+function escapeCsv(value: unknown): string {
   if (value === null || value === undefined) return ''
   const stringValue = String(value)
   if (stringValue.includes('"') || stringValue.includes(',') || stringValue.includes('\n')) {

@@ -18,15 +18,19 @@ export class OpenAIProvider implements AIProvider {
           role: m.role,
           content: m.content,
         })),
-        tools: tools.map((t) => ({
-          type: 'function' as const,
-          function: {
-            name: t.name,
-            description: t.description,
-            parameters: t.parameters,
-          },
-        })),
-        tool_choice: 'auto',
+        ...(tools.length > 0
+          ? {
+              tools: tools.map((t) => ({
+                type: 'function' as const,
+                function: {
+                  name: t.name,
+                  description: t.description,
+                  parameters: t.parameters,
+                },
+              })),
+              tool_choice: 'auto' as const,
+            }
+          : {}),
       })
 
       const choice = response.choices[0]

@@ -12,6 +12,7 @@ import {
   Phone,
   CircleNotch,
   Warning,
+  Sparkle,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import { format, parseISO } from 'date-fns'
@@ -101,7 +102,28 @@ export default function ConversationDetailPage() {
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [togglingBot, setTogglingBot] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  async function requestSuggestion() {
+    if (suggesting) return
+    setSuggesting(true)
+    try {
+      const res = await fetch(`/api/conversations/${id}/suggest`, {
+        method: 'POST',
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { suggestion: string }
+        if (data.suggestion) {
+          setMessage(data.suggestion)
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching suggestion:', e)
+    } finally {
+      setSuggesting(false)
+    }
+  }
 
   const fetchConversation = useCallback(async () => {
     try {
@@ -333,6 +355,26 @@ export default function ConversationDetailPage() {
             onChange={(e) => setMessage(e.target.value)}
             disabled={sending}
           />
+          <button
+            type="button"
+            onClick={requestSuggestion}
+            disabled={suggesting || sending}
+            className="btn btn-secondary has-tooltip"
+            style={{
+              flexShrink: 0,
+              background:
+                'linear-gradient(135deg, rgba(97, 114, 243, 0.1) 0%, rgba(37, 211, 102, 0.1) 100%)',
+              border: '1px solid rgba(97, 114, 243, 0.3)',
+              color: 'var(--color-brand-300)',
+            }}
+          >
+            {suggesting ? (
+              <CircleNotch size={18} style={{ animation: 'spin 0.8s linear infinite' }} />
+            ) : (
+              <Sparkle size={18} weight="fill" />
+            )}
+            <span className="tooltip">Sugerir Respuesta</span>
+          </button>
           <button
             id="send-message-btn"
             type="submit"

@@ -5,6 +5,7 @@ import { runAgent } from '@/lib/ai/agent'
 import { processFeedbackResponse } from '@/lib/feedback'
 import { processReminderResponse } from '@/lib/reminder'
 import { analyzeSentiment } from '@/lib/sentiment'
+import { sendHandoffNotification } from '@/lib/notifications'
 
 interface IncomingMessage {
   messageId: string
@@ -120,6 +121,20 @@ export async function processIncomingMessage(msg: IncomingMessage): Promise<void
       conversationId: conversation.id,
       sentiment: sentimentResult.sentiment,
     })
+
+    const fullConv = await prisma.conversation.findUnique({
+      where: { id: conversation.id },
+      include: { contact: true, organization: true },
+    })
+
+    if (fullConv) {
+      await sendHandoffNotification({
+        contactName: fullConv.contact.fullName ?? 'Cliente',
+        contactPhone: fullConv.contact.phone,
+        conversationId: conversation.id,
+        organizationName: fullConv.organization.name,
+      })
+    }
 
     const accessToken = safeDecrypt(waConfig.accessTokenEnc)
     if (accessToken) {

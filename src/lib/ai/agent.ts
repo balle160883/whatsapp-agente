@@ -9,6 +9,7 @@ import { CustomProvider } from '@/lib/ai/providers/custom'
 import { createAuditEvent, AUDIT_ACTIONS } from '@/lib/audit'
 import { addMinutes, parseISO } from 'date-fns'
 import { getRagContext } from '@/lib/rag'
+import { sendHandoffNotification } from '@/lib/notifications'
 
 interface AgentContext {
   organizationId: string
@@ -26,7 +27,7 @@ interface ToolResult {
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider Factory
 // ─────────────────────────────────────────────────────────────────────────────
-async function getProvider(organizationId: string): Promise<AIProvider> {
+export async function getProvider(organizationId: string): Promise<AIProvider> {
   const config = await prisma.agentConfig.findUnique({
     where: { organizationId },
   })
@@ -141,12 +142,19 @@ async function executeTool(
       }
 
       case 'request_human_handoff': {
-        await prisma.conversation.update({
+        const updated = await prisma.conversation.update({
           where: { id: ctx.conversationId },
           data: {
             botActive: false,
             status: 'HUMAN_HANDOFF',
           },
+          include: { contact: true, organization: true },
+        })
+        await sendHandoffNotification({
+          contactName: updated.contact.fullName ?? 'Cliente',
+          contactPhone: updated.contact.phone,
+          conversationId: ctx.conversationId,
+          organizationName: updated.organization.name,
         })
         await createAuditEvent({
           organizationId: ctx.organizationId,

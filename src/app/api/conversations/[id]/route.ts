@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { safeDecrypt } from '@/lib/encryption'
 import { createAuditEvent, AUDIT_ACTIONS } from '@/lib/audit'
+import { sendHandoffNotification } from '@/lib/notifications'
 
 // GET /api/conversations/[id]
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -58,7 +59,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await prisma.conversation.update({
     where: { id },
     data: parsed.data,
+    include: { contact: true, organization: true },
   })
+
+  if (parsed.data.status === 'HUMAN_HANDOFF') {
+    await sendHandoffNotification({
+      contactName: updated.contact.fullName ?? 'Cliente',
+      contactPhone: updated.contact.phone,
+      conversationId: id,
+      organizationName: updated.organization.name,
+    })
+  }
 
   if (typeof parsed.data.botActive === 'boolean') {
     await createAuditEvent({
@@ -70,7 +81,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     })
   }
 
-  return NextResponse.json(updated)
+  // Remove relation nesting to match output schema if required, or return directly
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { contact: _, organization: __, ...conversationData } = updated
+  return NextResponse.json(conversationData)
 }
 
 // POST /api/conversations/[id]/messages - Send manual message
