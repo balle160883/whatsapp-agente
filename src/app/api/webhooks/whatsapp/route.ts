@@ -106,6 +106,11 @@ interface WhatsAppPayload {
           timestamp: string
           type: string
           text?: { body: string }
+          interactive?: {
+            type: 'button_reply' | 'list_reply'
+            button_reply?: { id: string; title: string }
+            list_reply?: { id: string; title: string; description?: string }
+          }
         }>
         statuses?: unknown[]
       }
@@ -127,13 +132,24 @@ async function processPayloadAsync(payload: WhatsAppPayload, phoneNumberId: stri
 
       const messages = change.value?.messages ?? []
       for (const message of messages) {
-        if (message.type !== 'text' || !message.text?.body) continue
+        let textBody = ''
+        if (message.type === 'text' && message.text?.body) {
+          textBody = message.text.body
+        } else if (message.type === 'interactive' && message.interactive) {
+          if (message.interactive.type === 'button_reply' && message.interactive.button_reply) {
+            textBody = message.interactive.button_reply.title
+          } else if (message.interactive.type === 'list_reply' && message.interactive.list_reply) {
+            textBody = message.interactive.list_reply.title
+          }
+        }
+
+        if (!textBody) continue
 
         try {
           await processIncomingMessage({
             messageId: message.id,
             from: message.from,
-            text: message.text.body,
+            text: textBody,
             phoneNumberId,
             timestamp: parseInt(message.timestamp, 10),
           })

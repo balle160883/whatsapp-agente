@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { safeDecrypt } from '@/lib/encryption'
-import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { sendWhatsAppMessage, sendWhatsAppInteractiveMessage } from '@/lib/whatsapp'
 
 export async function sendFeedbackSurvey(
   organizationId: string,
@@ -49,11 +49,69 @@ Por favor, califica tu servicio de 0 a 5 estrellas:
 
 También puedes dejar un comentario si lo deseas. ¡Gracias por tu feedback!`
 
-  await sendWhatsAppMessage({
-    phoneNumberId: waConfig.phoneNumberId,
-    accessToken,
-    to: contact.phone,
-    text: surveyText,
+  // Try sending interactive list message
+  try {
+    await sendWhatsAppInteractiveMessage({
+      phoneNumberId: waConfig.phoneNumberId,
+      accessToken,
+      to: contact.phone,
+      bodyText: surveyText,
+      list: {
+        buttonText: 'Calificar servicio',
+        sections: [
+          {
+            title: 'Calificación NPS',
+            rows: [
+              { id: 'score_5', title: '5️⃣ Excelente', description: 'Totalmente satisfecho' },
+              { id: 'score_4', title: '4️⃣ Bueno', description: 'Satisfecho' },
+              { id: 'score_3', title: '3️⃣ Regular', description: 'Se puede mejorar' },
+              { id: 'score_2', title: '2️⃣ Malo', description: 'Insatisfecho' },
+              { id: 'score_1', title: '1️⃣ Muy malo', description: 'Totalmente insatisfecho' },
+            ],
+          },
+        ],
+      },
+    })
+  } catch (error) {
+    console.warn('[Feedback] Failed to send interactive list, falling back to text:', error)
+    await sendWhatsAppMessage({
+      phoneNumberId: waConfig.phoneNumberId,
+      accessToken,
+      to: contact.phone,
+      text: surveyText,
+    })
+  }
+
+  // Find or create conversation to save outgoing message
+  let conversation = await prisma.conversation.findFirst({
+    where: {
+      organizationId,
+      contactId,
+      status: { in: ['OPEN', 'HUMAN_HANDOFF'] },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  if (!conversation) {
+    conversation = await prisma.conversation.create({
+      data: {
+        organizationId,
+        contactId,
+        status: 'OPEN',
+        botActive: true,
+      },
+    })
+  }
+
+  // Save outgoing message to DB
+  await prisma.message.create({
+    data: {
+      organizationId,
+      conversationId: conversation.id,
+      direction: 'OUTGOING',
+      sender: 'BOT',
+      content: surveyText,
+    },
   })
 
   return feedback

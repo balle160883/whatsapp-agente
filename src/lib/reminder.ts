@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { sendWhatsAppMessage, sendWhatsAppInteractiveMessage } from '@/lib/whatsapp'
 import { safeDecrypt } from '@/lib/encryption'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -51,11 +51,59 @@ Fecha y hora: {{fecha_hora}}
     .replace(/\{\{servicio\}\}/g, appointment.service)
     .replace(/\{\{fecha_hora\}\}/g, formattedDate)
 
-  await sendWhatsAppMessage({
-    phoneNumberId: appointment.organization.whatsappConfig.phoneNumberId,
-    accessToken,
-    to: appointment.contact.phone,
-    text: reminderText,
+  // Try sending interactive message
+  try {
+    await sendWhatsAppInteractiveMessage({
+      phoneNumberId: appointment.organization.whatsappConfig.phoneNumberId,
+      accessToken,
+      to: appointment.contact.phone,
+      bodyText: reminderText,
+      buttons: [
+        { id: 'confirm', title: 'Confirmar' },
+        { id: 'reschedule', title: 'Reprogramar' },
+        { id: 'cancel', title: 'Cancelar' },
+      ],
+    })
+  } catch (error) {
+    console.warn('[Reminder] Failed to send interactive buttons, falling back to text:', error)
+    await sendWhatsAppMessage({
+      phoneNumberId: appointment.organization.whatsappConfig.phoneNumberId,
+      accessToken,
+      to: appointment.contact.phone,
+      text: reminderText,
+    })
+  }
+
+  // Find or create conversation to save outgoing message
+  let conversation = await prisma.conversation.findFirst({
+    where: {
+      organizationId: appointment.organizationId,
+      contactId: appointment.contactId,
+      status: { in: ['OPEN', 'HUMAN_HANDOFF'] },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  if (!conversation) {
+    conversation = await prisma.conversation.create({
+      data: {
+        organizationId: appointment.organizationId,
+        contactId: appointment.contactId,
+        status: 'OPEN',
+        botActive: true,
+      },
+    })
+  }
+
+  // Save outgoing message to DB
+  await prisma.message.create({
+    data: {
+      organizationId: appointment.organizationId,
+      conversationId: conversation.id,
+      direction: 'OUTGOING',
+      sender: 'BOT',
+      content: reminderText,
+    },
   })
 
   await prisma.appointment.update({
@@ -91,18 +139,26 @@ export async function processReminderResponse(
   const response = text.toLowerCase()
   let responseText = ''
 
-  if (response.includes('1') || response.includes('confirmar')) {
+  if (response.includes('1') || response.includes('confirmar') || response.includes('confirm')) {
     await prisma.appointment.update({
       where: { id: latestAppointment.id },
       data: { status: 'CONFIRMED' },
     })
     responseText = '¡Perfecto! Hemos confirmado tu asistencia. ¡Nos vemos pronto! 😊'
     return { appointmentId: latestAppointment.id, action: 'confirmed', responseText }
-  } else if (response.includes('2') || response.includes('reprogramar')) {
+  } else if (
+    response.includes('2') ||
+    response.includes('reprogramar') ||
+    response.includes('reschedule')
+  ) {
     responseText =
       '¡Claro! Por favor, ¿qué día y hora te conviene? Te ayudaremos a reprogramar tu cita.'
     return { appointmentId: latestAppointment.id, action: 'reschedule', responseText }
-  } else if (response.includes('3') || response.includes('cancelar')) {
+  } else if (
+    response.includes('3') ||
+    response.includes('cancelar') ||
+    response.includes('cancel')
+  ) {
     await prisma.appointment.update({
       where: { id: latestAppointment.id },
       data: { status: 'CANCELLED' },
