@@ -6,6 +6,7 @@ import { processFeedbackResponse } from '@/lib/feedback'
 import { processReminderResponse } from '@/lib/reminder'
 import { analyzeSentiment } from '@/lib/sentiment'
 import { sendHandoffNotification } from '@/lib/notifications'
+import { extractAndSaveContactInfo } from '@/lib/ai/extractor'
 
 interface IncomingMessage {
   messageId: string
@@ -91,6 +92,9 @@ export async function processIncomingMessage(msg: IncomingMessage): Promise<void
       content: msg.text,
     },
   })
+
+  // Extract contact info automatically (non-blocking)
+  void extractAndSaveContactInfo(organizationId, contact.id, conversation.id)
 
   // Analyze sentiment and update conversation
   const sentimentResult = analyzeSentiment(msg.text)
