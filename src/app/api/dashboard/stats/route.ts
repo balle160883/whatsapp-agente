@@ -15,48 +15,60 @@ export async function GET() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 })
   const weekEnd = endOfWeek(now, { weekStartsOn: 1 })
 
-  const [totalConversations, appointmentsThisWeek, recentConversations, dailyMessages] =
-    await Promise.all([
-      // Conversations last 30 days
-      prisma.conversation.count({
-        where: {
-          organizationId,
-          createdAt: { gte: thirtyDaysAgo },
+  const [
+    totalConversations,
+    appointmentsThisWeek,
+    pendingHandoffs,
+    recentConversations,
+    dailyMessages,
+  ] = await Promise.all([
+    // Conversations last 30 days
+    prisma.conversation.count({
+      where: {
+        organizationId,
+        createdAt: { gte: thirtyDaysAgo },
+      },
+    }),
+    // Appointments this week
+    prisma.appointment.count({
+      where: {
+        organizationId,
+        startsAt: { gte: weekStart, lte: weekEnd },
+        status: { notIn: ['CANCELLED'] },
+      },
+    }),
+    // Pending Handoffs
+    prisma.conversation.count({
+      where: {
+        organizationId,
+        status: 'HUMAN_HANDOFF',
+      },
+    }),
+    // Latest conversations with last message
+    prisma.conversation.findMany({
+      where: { organizationId },
+      orderBy: { lastMessageAt: 'desc' },
+      take: 5,
+      include: {
+        contact: { select: { fullName: true, phone: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { content: true, createdAt: true, sender: true },
         },
-      }),
-      // Appointments this week
-      prisma.appointment.count({
-        where: {
-          organizationId,
-          startsAt: { gte: weekStart, lte: weekEnd },
-          status: { notIn: ['CANCELLED'] },
-        },
-      }),
-      // Latest conversations with last message
-      prisma.conversation.findMany({
-        where: { organizationId },
-        orderBy: { lastMessageAt: 'desc' },
-        take: 5,
-        include: {
-          contact: { select: { fullName: true, phone: true } },
-          messages: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: { content: true, createdAt: true, sender: true },
-          },
-        },
-      }),
-      // Daily message count for trend (last 14 days)
-      prisma.message.groupBy({
-        by: ['createdAt'],
-        where: {
-          organizationId,
-          createdAt: { gte: subDays(now, 14) },
-          direction: 'INCOMING',
-        },
-        _count: { id: true },
-      }),
-    ])
+      },
+    }),
+    // Daily message count for trend (last 14 days)
+    prisma.message.groupBy({
+      by: ['createdAt'],
+      where: {
+        organizationId,
+        createdAt: { gte: subDays(now, 14) },
+        direction: 'INCOMING',
+      },
+      _count: { id: true },
+    }),
+  ])
 
   // Build daily trend data
   const days = eachDayOfInterval({ start: subDays(now, 13), end: now })
@@ -72,6 +84,7 @@ export async function GET() {
   return NextResponse.json({
     totalConversations,
     appointmentsThisWeek,
+    pendingHandoffs,
     recentConversations: recentConversations.map((c) => ({
       id: c.id,
       status: c.status,

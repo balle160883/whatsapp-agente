@@ -12,6 +12,7 @@ import {
   CheckCircle,
   PaperPlaneTilt,
   BookOpen,
+  UploadSimple,
 } from '@phosphor-icons/react'
 
 interface FAQ {
@@ -64,11 +65,25 @@ export default function PersonalizacionPage() {
   const [newDocTitle, setNewDocTitle] = useState('')
   const [newDocContent, setNewDocContent] = useState('')
   const [addingDoc, setAddingDoc] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+
+  const handleFileImport = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      const titleWithoutExt = file.name.replace(/\.[^/.]+$/, '')
+      setNewDocTitle(titleWithoutExt)
+      setNewDocContent(text)
+    }
+    reader.readAsText(file)
+  }
 
   const fetchDocuments = useCallback(async () => {
     try {
       const res = await fetch('/api/knowledge-base')
-      const data = (await res.json()) as { documents: any[] }
+      const data = (await res.json()) as {
+        documents: Array<{ id: string; title: string; content: string }>
+      }
       setDocuments(data.documents ?? [])
     } catch (e) {
       console.error(e)
@@ -130,6 +145,7 @@ export default function PersonalizacionPage() {
 
   useEffect(() => {
     void fetchConfig()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchDocuments()
   }, [fetchConfig, fetchDocuments])
 
@@ -603,6 +619,76 @@ export default function PersonalizacionPage() {
               >
                 Agregar nuevo documento
               </span>
+
+              {/* Drag & Drop Zone */}
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDragOver(true)
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  setDragOver(false)
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    handleFileImport(e.dataTransfer.files[0])
+                  }
+                }}
+                style={{
+                  border:
+                    '2px dashed ' + (dragOver ? 'var(--color-brand-500)' : 'var(--color-border)'),
+                  background: dragOver ? 'rgba(97, 114, 243, 0.05)' : 'transparent',
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  textAlign: 'center',
+                  marginBottom: '1rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+                onClick={() => document.getElementById('file-upload-input')?.click()}
+              >
+                <UploadSimple
+                  size={24}
+                  color={dragOver ? 'var(--color-brand-400)' : 'var(--color-text-secondary)'}
+                />
+                <div>
+                  <span
+                    style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      color: 'var(--color-text-primary)',
+                    }}
+                  >
+                    Arrastra un archivo aquí o haz clic para subir
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--color-text-muted)',
+                      display: 'block',
+                      marginTop: '2px',
+                    }}
+                  >
+                    TXT, MD, CSV, JSON o archivos de texto
+                  </span>
+                </div>
+                <input
+                  id="file-upload-input"
+                  type="file"
+                  accept=".txt,.md,.csv,.json,.xml,.html"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleFileImport(e.target.files[0])
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+              </div>
+
               <input
                 className="input"
                 placeholder="Título del documento (ej. Políticas de cancelación)..."
