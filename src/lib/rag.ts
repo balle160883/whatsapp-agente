@@ -3,6 +3,7 @@ import { prisma } from './prisma'
 interface RagContextResult {
   contextText: string
   hasContext: boolean
+  sources?: string[]
 }
 
 /**
@@ -10,11 +11,12 @@ interface RagContextResult {
  */
 export async function getRagContext(orgId: string, query: string): Promise<RagContextResult> {
   if (!query || query.trim().length < 3) {
-    return { contextText: '', hasContext: false }
+    return { contextText: '', hasContext: false, sources: [] }
   }
 
   const cleanQuery = query.trim()
   const matchingTexts: string[] = []
+  const sources: string[] = []
 
   try {
     // 1. Search in KnowledgeBase using PostgreSQL Full-Text Search & ILIKE fallback
@@ -33,6 +35,7 @@ export async function getRagContext(orgId: string, query: string): Promise<RagCo
     if (dbDocs && dbDocs.length > 0) {
       dbDocs.forEach((doc) => {
         matchingTexts.push(`Documento: ${doc.title}\nContenido: ${doc.content}`)
+        sources.push(doc.title)
       })
     }
   } catch (error) {
@@ -64,6 +67,7 @@ export async function getRagContext(orgId: string, query: string): Promise<RagCo
 
       matchedFaqs.forEach((faq) => {
         matchingTexts.push(`Pregunta Frecuente: ${faq.q}\nRespuesta: ${faq.a}`)
+        sources.push(`FAQ: ${faq.q}`)
       })
     }
   } catch (error) {
@@ -71,10 +75,10 @@ export async function getRagContext(orgId: string, query: string): Promise<RagCo
   }
 
   if (matchingTexts.length === 0) {
-    return { contextText: '', hasContext: false }
+    return { contextText: '', hasContext: false, sources: [] }
   }
 
   const contextText = `\n[INFORMACIÓN DE RESPALDO/BASE DE CONOCIMIENTO]\nUsa exclusivamente la siguiente información de respaldo para responder la consulta del cliente si es relevante:\n\n${matchingTexts.join('\n\n')}\n[FIN INFORMACIÓN DE RESPALDO]\n`
 
-  return { contextText, hasContext: true }
+  return { contextText, hasContext: true, sources }
 }

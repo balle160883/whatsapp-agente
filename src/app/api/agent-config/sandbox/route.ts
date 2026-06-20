@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Retrieve RAG context if applicable
-  const { contextText } = await getRagContext(organizationId, body.message)
+  const { contextText, sources } = await getRagContext(organizationId, body.message)
 
   const messages: ChatMessage[] = [
     {
@@ -59,5 +59,8 @@ export async function POST(req: NextRequest) {
   ]
 
   const response = await provider.generateResponse(messages, AGENT_TOOLS)
-  return NextResponse.json({ response: response.content || 'El agente procesó la solicitud.' })
+  return NextResponse.json({
+    response: response.content || 'El agente procesó la solicitud.',
+    sources: sources || [],
+  })
 }

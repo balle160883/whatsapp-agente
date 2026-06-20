@@ -36,6 +36,7 @@ interface AgentConfig {
 interface SandboxMessage {
   role: 'user' | 'assistant'
   content: string
+  sources?: string[]
 }
 
 export default function PersonalizacionPage() {
@@ -184,10 +185,16 @@ export default function PersonalizacionPage() {
       const res = await fetch('/api/agent-config/sandbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMsg, history: sandboxMessages }),
+        body: JSON.stringify({
+          message: userMsg,
+          history: sandboxMessages.map((m) => ({ role: m.role, content: m.content })),
+        }),
       })
-      const data = (await res.json()) as { response: string }
-      setSandboxMessages((prev) => [...prev, { role: 'assistant', content: data.response }])
+      const data = (await res.json()) as { response: string; sources?: string[] }
+      setSandboxMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: data.response, sources: data.sources },
+      ])
     } catch {
       setSandboxMessages((prev) => [
         ...prev,
@@ -851,7 +858,11 @@ export default function PersonalizacionPage() {
                 key={i}
                 style={{
                   display: 'flex',
-                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  flexDirection: 'column',
+                  alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  gap: '0.25rem',
+                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                  width: '100%',
                 }}
               >
                 <div
@@ -864,6 +875,50 @@ export default function PersonalizacionPage() {
                 >
                   {msg.content}
                 </div>
+                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.25rem',
+                      fontSize: '0.75rem',
+                      color: '#25d366',
+                      marginTop: '0.125rem',
+                      paddingLeft: '0.5rem',
+                      borderLeft: '2px solid #25d366',
+                      maxWidth: '85%',
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      📚 Documentos RAG utilizados:
+                    </span>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '0.25rem',
+                        marginTop: '0.125rem',
+                      }}
+                    >
+                      {msg.sources.map((src, idx) => (
+                        <span
+                          key={idx}
+                          style={{
+                            fontSize: '0.6875rem',
+                            padding: '0.125rem 0.5rem',
+                            backgroundColor: 'rgba(37, 211, 102, 0.12)',
+                            color: '#25d366',
+                            border: '1px solid rgba(37, 211, 102, 0.25)',
+                            borderRadius: '9999px',
+                            fontWeight: 500,
+                          }}
+                        >
+                          {src}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             {sandboxLoading && (
