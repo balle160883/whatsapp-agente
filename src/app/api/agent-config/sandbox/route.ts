@@ -22,45 +22,54 @@ export async function POST(req: NextRequest) {
   const config = await prisma.agentConfig.findUnique({ where: { organizationId } })
   if (!config) return NextResponse.json({ response: 'No hay configuración del agente.' })
 
-  const apiKey = safeDecrypt(config.apiKeyEnc)
+  try {
+    const apiKey = safeDecrypt(config.apiKeyEnc)
 
-  let provider
-  switch (config.provider) {
-    case 'OPENAI':
-      provider = new OpenAIProvider(apiKey ?? process.env.OPENAI_API_KEY ?? '')
-      break
-    case 'ANTIGRAVITY':
-      provider = new AntigravityProvider(apiKey ?? process.env.ANTIGRAVITY_API_KEY ?? '')
-      break
-    case 'CUSTOM':
-      provider = new CustomProvider({
-        apiKey: apiKey ?? '',
-        endpoint: config.customEndpoint ?? '',
-        model: config.customModel ?? 'gpt-4o-mini',
-      })
-      break
-    default:
-      provider = new OpenAIProvider(process.env.OPENAI_API_KEY ?? '')
+    let provider
+    switch (config.provider) {
+      case 'OPENAI':
+        provider = new OpenAIProvider(apiKey ?? process.env.OPENAI_API_KEY ?? '')
+        break
+      case 'ANTIGRAVITY':
+        provider = new AntigravityProvider(apiKey ?? process.env.ANTIGRAVITY_API_KEY ?? '')
+        break
+      case 'CUSTOM':
+        provider = new CustomProvider({
+          apiKey: apiKey ?? '',
+          endpoint: config.customEndpoint ?? '',
+          model: config.customModel ?? 'gpt-4o-mini',
+        })
+        break
+      default:
+        provider = new OpenAIProvider(process.env.OPENAI_API_KEY ?? '')
+    }
+
+    // Retrieve RAG context if applicable
+    const { contextText, sources } = await getRagContext(organizationId, body.message)
+
+    const messages: ChatMessage[] = [
+      {
+        role: 'system',
+        content: `${config.systemPrompt}\n\nTono: ${config.tone}\nServicios: ${JSON.stringify(config.services)}\nPreguntas frecuentes: ${JSON.stringify(config.faqs)}\nPolíticas: ${JSON.stringify(config.policies)}${contextText ? `\n${contextText}` : ''}\n\nEsto es una sesión de prueba sandbox. No ejecutes herramientas reales.`,
+      },
+      ...(body.history ?? []).map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      })),
+      { role: 'user', content: body.message },
+    ]
+
+    const response = await provider.generateResponse(messages, AGENT_TOOLS)
+    return NextResponse.json({
+      response: response.content || 'El agente procesó la solicitud.',
+      sources: sources || [],
+    })
+  } catch (err) {
+    console.error('Error in sandbox route:', err)
+    return NextResponse.json({
+      response:
+        'Error: No se pudo conectar con el agente. Por favor, asegúrate de haber configurado y guardado correctamente tu API Key del proveedor de IA en la pantalla de Configuración.',
+      sources: [],
+    })
   }
-
-  // Retrieve RAG context if applicable
-  const { contextText, sources } = await getRagContext(organizationId, body.message)
-
-  const messages: ChatMessage[] = [
-    {
-      role: 'system',
-      content: `${config.systemPrompt}\n\nTono: ${config.tone}\nServicios: ${JSON.stringify(config.services)}\nPreguntas frecuentes: ${JSON.stringify(config.faqs)}\nPolíticas: ${JSON.stringify(config.policies)}${contextText ? `\n${contextText}` : ''}\n\nEsto es una sesión de prueba sandbox. No ejecutes herramientas reales.`,
-    },
-    ...(body.history ?? []).map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-    })),
-    { role: 'user', content: body.message },
-  ]
-
-  const response = await provider.generateResponse(messages, AGENT_TOOLS)
-  return NextResponse.json({
-    response: response.content || 'El agente procesó la solicitud.',
-    sources: sources || [],
-  })
 }
