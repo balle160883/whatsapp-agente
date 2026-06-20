@@ -28,6 +28,9 @@ interface Message {
   sender: 'CLIENT' | 'BOT' | 'HUMAN'
   direction: 'INCOMING' | 'OUTGOING'
   createdAt: string
+  metadata?: {
+    isInternal?: boolean
+  } | null
 }
 
 interface Contact {
@@ -40,6 +43,8 @@ interface Contact {
     reason?: string | null
     allergies?: string | null
     notes?: string | null
+    assignedToId?: string | null
+    assignedToName?: string | null
   } | null
 }
 
@@ -53,12 +58,24 @@ interface ConversationDetail {
 
 function MessageBubble({ msg }: { msg: Message }) {
   const isOutgoing = msg.direction === 'OUTGOING'
+  const isInternal = msg.metadata?.isInternal === true
+
   const bubbleClass =
     msg.sender === 'CLIENT'
       ? 'chat-bubble chat-bubble-client'
       : msg.sender === 'BOT'
         ? 'chat-bubble chat-bubble-bot'
         : 'chat-bubble chat-bubble-human'
+
+  // Custom styling for internal notes
+  const internalStyles: React.CSSProperties = isInternal
+    ? {
+        background: 'rgba(245, 158, 11, 0.12)',
+        border: '1px dashed rgba(245, 158, 11, 0.45)',
+        borderBottomRightRadius: '4px',
+        marginLeft: 'auto',
+      }
+    : {}
 
   return (
     <div
@@ -81,12 +98,18 @@ function MessageBubble({ msg }: { msg: Message }) {
           gap: '0.25rem',
         }}
       >
-        {msg.sender === 'BOT' && <Robot size={10} />}
-        {msg.sender === 'HUMAN' && <User size={10} />}
-        {msg.sender === 'CLIENT' ? 'Cliente' : msg.sender === 'BOT' ? 'Bot IA' : 'Agente'}
+        {isInternal ? (
+          <span style={{ color: '#f59e0b', fontWeight: 600 }}>🔒 Nota Interna - Agente</span>
+        ) : (
+          <>
+            {msg.sender === 'BOT' && <Robot size={10} />}
+            {msg.sender === 'HUMAN' && <User size={10} />}
+            {msg.sender === 'CLIENT' ? 'Cliente' : msg.sender === 'BOT' ? 'Bot IA' : 'Agente'}
+          </>
+        )}
       </div>
 
-      <div className={bubbleClass}>
+      <div className={bubbleClass} style={internalStyles}>
         {msg.content}
         <div
           style={{
@@ -114,6 +137,9 @@ export default function ConversationDetailPage() {
   const [sending, setSending] = useState(false)
   const [togglingBot, setTogglingBot] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
+  const [agents, setAgents] = useState<{ id: string; name: string; role: string }[]>([])
+  const [assigning, setAssigning] = useState(false)
+  const [isInternalMode, setIsInternalMode] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   async function requestSuggestion() {
@@ -160,6 +186,21 @@ export default function ConversationDetailPage() {
   }, [fetchConversation])
 
   useEffect(() => {
+    async function fetchAgents() {
+      try {
+        const res = await fetch('/api/users')
+        if (res.ok) {
+          const data = await res.json()
+          setAgents(data)
+        }
+      } catch (e) {
+        console.error('Error fetching agents:', e)
+      }
+    }
+    void fetchAgents()
+  }, [])
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [conversation?.messages.length])
 
@@ -180,6 +221,42 @@ export default function ConversationDetailPage() {
     }
   }
 
+  async function handleAssignAgent(agentId: string) {
+    if (!conversation) return
+    setAssigning(true)
+    const selectedAgent = agents.find((a) => a.id === agentId)
+    const assignedToId = agentId || null
+    const assignedToName = selectedAgent ? selectedAgent.name : null
+
+    try {
+      const res = await fetch(`/api/conversations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignedToId, assignedToName }),
+      })
+      if (res.ok) {
+        setConversation((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            contact: {
+              ...prev.contact,
+              metadata: {
+                ...prev.contact.metadata,
+                assignedToId,
+                assignedToName,
+              },
+            },
+          }
+        })
+      }
+    } catch (e) {
+      console.error('Error assigning agent:', e)
+    } finally {
+      setAssigning(false)
+    }
+  }
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault()
     if (!message.trim() || sending) return
@@ -192,12 +269,13 @@ export default function ConversationDetailPage() {
       const res = await fetch(`/api/conversations/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, isInternal: isInternalMode }),
       })
 
       if (res.ok) {
         const newMsg = (await res.json()) as Message
         setConversation((prev) => (prev ? { ...prev, messages: [...prev.messages, newMsg] } : prev))
+        setIsInternalMode(false)
       }
     } finally {
       setSending(false)
@@ -358,60 +436,131 @@ export default function ConversationDetailPage() {
 
         {/* Message Input */}
         {!conversation.botActive && (
-          <form
-            onSubmit={sendMessage}
+          <div
             style={{
-              display: 'flex',
-              gap: '0.75rem',
               marginTop: '0.75rem',
+              display: 'flex',
+              flexDirection: 'column',
               flexShrink: 0,
             }}
           >
-            <input
-              id="manual-message-input"
-              type="text"
-              className="input"
-              style={{ flex: 1 }}
-              placeholder="Escribe un mensaje como agente humano..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              disabled={sending}
-            />
-            <button
-              type="button"
-              onClick={requestSuggestion}
-              disabled={suggesting || sending}
-              className="btn btn-secondary has-tooltip"
+            {/* Selector de Tipo de Mensaje */}
+            <div
               style={{
-                flexShrink: 0,
-                background:
-                  'linear-gradient(135deg, rgba(97, 114, 243, 0.1) 0%, rgba(37, 211, 102, 0.1) 100%)',
-                border: '1px solid rgba(97, 114, 243, 0.3)',
-                color: 'var(--color-brand-300)',
+                display: 'flex',
+                gap: '0.25rem',
+                marginBottom: '0.25rem',
+                fontSize: '0.8125rem',
               }}
             >
-              {suggesting ? (
-                <CircleNotch size={18} style={{ animation: 'spin 0.8s linear infinite' }} />
-              ) : (
-                <Sparkle size={18} weight="fill" />
-              )}
-              <span className="tooltip">Sugerir Respuesta</span>
-            </button>
-            <button
-              id="send-message-btn"
-              type="submit"
-              className="btn btn-whatsapp"
-              disabled={sending || !message.trim()}
-              style={{ flexShrink: 0 }}
+              <button
+                type="button"
+                onClick={() => setIsInternalMode(false)}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                  border: 'none',
+                  background: !isInternalMode ? 'rgba(37, 211, 102, 0.12)' : 'transparent',
+                  color: !isInternalMode ? '#25d366' : 'var(--color-text-muted)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  borderBottom: !isInternalMode ? '2px solid #25d366' : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span>💬 Mensaje</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsInternalMode(true)}
+                style={{
+                  padding: '0.375rem 0.75rem',
+                  borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                  border: 'none',
+                  background: isInternalMode ? 'rgba(245, 158, 11, 0.12)' : 'transparent',
+                  color: isInternalMode ? '#f59e0b' : 'var(--color-text-muted)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  borderBottom: isInternalMode ? '2px solid #f59e0b' : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span>🔒 Nota Interna</span>
+              </button>
+            </div>
+
+            <form
+              onSubmit={sendMessage}
+              style={{
+                display: 'flex',
+                gap: '0.75rem',
+              }}
             >
-              {sending ? (
-                <CircleNotch size={18} style={{ animation: 'spin 0.8s linear infinite' }} />
-              ) : (
-                <PaperPlaneTilt size={18} weight="fill" />
-              )}
-              Enviar
-            </button>
-          </form>
+              <input
+                id="manual-message-input"
+                type="text"
+                className="input"
+                style={{
+                  flex: 1,
+                  backgroundColor: isInternalMode ? 'rgba(245, 158, 11, 0.05)' : undefined,
+                  borderColor: isInternalMode ? 'rgba(245, 158, 11, 0.4)' : undefined,
+                }}
+                placeholder={
+                  isInternalMode
+                    ? 'Escribe una nota interna (privada para el equipo)...'
+                    : 'Escribe un mensaje como agente humano...'
+                }
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                disabled={sending}
+              />
+              <button
+                type="button"
+                onClick={requestSuggestion}
+                disabled={suggesting || sending || isInternalMode}
+                className="btn btn-secondary has-tooltip"
+                style={{
+                  flexShrink: 0,
+                  background:
+                    'linear-gradient(135deg, rgba(97, 114, 243, 0.1) 0%, rgba(37, 211, 102, 0.1) 100%)',
+                  border: '1px solid rgba(97, 114, 243, 0.3)',
+                  color: 'var(--color-brand-300)',
+                  opacity: isInternalMode ? 0.5 : 1,
+                }}
+              >
+                {suggesting ? (
+                  <CircleNotch size={18} style={{ animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <Sparkle size={18} weight="fill" />
+                )}
+                <span className="tooltip">Sugerir Respuesta</span>
+              </button>
+              <button
+                id="send-message-btn"
+                type="submit"
+                className="btn"
+                disabled={sending || !message.trim()}
+                style={{
+                  flexShrink: 0,
+                  backgroundColor: isInternalMode ? '#f59e0b' : '#25d366',
+                  color: '#fff',
+                }}
+              >
+                {sending ? (
+                  <CircleNotch size={18} style={{ animation: 'spin 0.8s linear infinite' }} />
+                ) : (
+                  <PaperPlaneTilt size={18} weight="fill" />
+                )}
+                {isInternalMode ? 'Guardar Nota' : 'Enviar'}
+              </button>
+            </form>
+          </div>
         )}
 
         {conversation.botActive && (
@@ -501,6 +650,59 @@ export default function ConversationDetailPage() {
             >
               {conversation.contact.phone}
             </p>
+          </div>
+        </div>
+
+        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: 0 }} />
+
+        {/* Asignación de Agente */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+          <label
+            style={{
+              fontSize: '0.7rem',
+              fontWeight: 700,
+              color: 'var(--color-text-muted)',
+              letterSpacing: '0.05em',
+            }}
+          >
+            AGENTE ASIGNADO
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <select
+              value={conversation.contact.metadata?.assignedToId ?? ''}
+              onChange={(e) => handleAssignAgent(e.target.value)}
+              disabled={assigning}
+              style={{
+                width: '100%',
+                padding: '0.5rem 0.75rem',
+                fontSize: '0.8125rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-primary)',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="" style={{ backgroundColor: 'var(--color-bg-card)' }}>
+                Sin Asignar
+              </option>
+              {agents.map((agent) => (
+                <option
+                  key={agent.id}
+                  value={agent.id}
+                  style={{ backgroundColor: 'var(--color-bg-card)' }}
+                >
+                  {agent.name} ({agent.role === 'ADMIN' ? 'Admin' : 'Agente'})
+                </option>
+              ))}
+            </select>
+            {assigning && (
+              <CircleNotch
+                size={16}
+                style={{ animation: 'spin 0.8s linear infinite', flexShrink: 0 }}
+              />
+            )}
           </div>
         </div>
 
