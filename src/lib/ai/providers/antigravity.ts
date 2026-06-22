@@ -69,15 +69,16 @@ export class AntigravityProvider implements AIProvider {
         finishReason: 'stop',
       }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
       console.error(
         JSON.stringify({
           level: 'error',
           provider: 'antigravity',
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMsg,
         })
       )
       return {
-        content: 'Lo siento, hubo un error al procesar tu solicitud.',
+        content: `Error de Gemini: ${errorMsg}`,
         finishReason: 'error',
       }
     }
