@@ -72,16 +72,17 @@ export class CustomProvider implements AIProvider {
         finishReason: choice.finish_reason === 'tool_calls' ? 'tool_calls' : 'stop',
       }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error)
       console.error(
         JSON.stringify({
           level: 'error',
           provider: 'custom',
           endpoint: this.config.endpoint,
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMsg,
         })
       )
       return {
-        content: 'Lo siento, hubo un error al procesar tu solicitud.',
+        content: `Error del proveedor personalizado: ${errorMsg}`,
         finishReason: 'error',
       }
     }
