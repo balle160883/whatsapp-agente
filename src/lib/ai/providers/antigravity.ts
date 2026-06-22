@@ -5,7 +5,7 @@ export class AntigravityProvider implements AIProvider {
   private client: GoogleGenerativeAI
   private model: string
 
-  constructor(apiKey: string, model = 'gemini-1.5-flash') {
+  constructor(apiKey: string, model = 'gemini-2.0-flash') {
     this.client = new GoogleGenerativeAI(apiKey || 'sk-dummy')
     this.model = model
   }
