@@ -15,7 +15,17 @@ export class CustomProvider implements AIProvider {
 
   async generateResponse(messages: ChatMessage[], tools: Tool[]): Promise<AIResponse> {
     try {
-      const response = await fetch(`${this.config.endpoint}/chat/completions`, {
+      let cleanEndpoint = this.config.endpoint.trim()
+      if (cleanEndpoint.endsWith('/chat/completions/')) {
+        cleanEndpoint = cleanEndpoint.slice(0, -'/chat/completions/'.length)
+      } else if (cleanEndpoint.endsWith('/chat/completions')) {
+        cleanEndpoint = cleanEndpoint.slice(0, -'/chat/completions'.length)
+      }
+      if (cleanEndpoint.endsWith('/')) {
+        cleanEndpoint = cleanEndpoint.slice(0, -1)
+      }
+
+      const response = await fetch(`${cleanEndpoint}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
