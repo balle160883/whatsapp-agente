@@ -24,6 +24,11 @@ interface ToolResult {
   error?: string
 }
 
+// Cache memory to prevent excessive API hits when checking available tables
+let cachedTables: string[] | null = null
+let lastTablesFetchTime = 0
+const TABLES_CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Provider Factory
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,6 +176,55 @@ async function executeTool(
         }
       }
 
+      case 'search_database_table': {
+        const table = args.table as string
+        const query = args.query as string
+        const limit = (args.limit as number) ?? 5
+        const apiUrl = process.env.PROMOBILE_API_URL || 'https://api.promobile.cloud'
+        const apiKey = process.env.PROMOBILE_API_KEY || 'chatbot-secret-key-2024'
+
+        const res = await fetch(`${apiUrl}/chatbot/search`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey,
+          },
+          body: JSON.stringify({ table, message: query, limit }),
+        })
+        if (!res.ok) {
+          return {
+            success: false,
+            error: `Error HTTP ${res.status} al consultar la base de datos.`,
+          }
+        }
+        const data = (await res.json()) as { data: unknown }
+        return { success: true, data: data.data }
+      }
+
+      case 'query_database_table': {
+        const table = args.table as string
+        const limit = (args.limit as number) ?? 10
+        const apiUrl = process.env.PROMOBILE_API_URL || 'https://api.promobile.cloud'
+        const apiKey = process.env.PROMOBILE_API_KEY || 'chatbot-secret-key-2024'
+
+        const res = await fetch(`${apiUrl}/chatbot/query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey,
+          },
+          body: JSON.stringify({ table, limit }),
+        })
+        if (!res.ok) {
+          return {
+            success: false,
+            error: `Error HTTP ${res.status} al consultar la base de datos.`,
+          }
+        }
+        const data = (await res.json()) as { data: unknown }
+        return { success: true, data: data.data }
+      }
+
       default:
         return { success: false, error: `Herramienta desconocida: ${name}` }
     }
@@ -204,6 +258,35 @@ export async function runAgent(ctx: AgentContext, userMessage: string): Promise<
   // Retrieve RAG context if applicable
   const { contextText } = await getRagContext(ctx.organizationId, userMessage)
 
+  // Dynamic table discovery cache retrieval
+  let tablesListStr = ''
+  try {
+    const now = Date.now()
+    if (!cachedTables || now - lastTablesFetchTime > TABLES_CACHE_TTL_MS) {
+      const apiUrl = process.env.PROMOBILE_API_URL || 'https://api.promobile.cloud'
+      const apiKey = process.env.PROMOBILE_API_KEY || 'chatbot-secret-key-2024'
+      const res = await fetch(`${apiUrl}/chatbot/tables`, {
+        headers: {
+          'X-API-Key': apiKey,
+        },
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { tables: string[] }
+        if (data && Array.isArray(data.tables)) {
+          cachedTables = data.tables
+          lastTablesFetchTime = now
+        }
+      }
+    }
+    if (cachedTables && cachedTables.length > 0) {
+      tablesListStr = `\nTablas de información de la cooperativa disponibles en la base de datos:\n${cachedTables
+        .map((t) => `- ${t}`)
+        .join('\n')}\n`
+    }
+  } catch (err) {
+    console.error('Error fetching tables from Promobile API:', err)
+  }
+
   // Build system prompt with organization context
   const systemPrompt = `${config.systemPrompt}
 
@@ -212,13 +295,15 @@ Servicios disponibles: ${JSON.stringify(config.services)}
 Horarios de atención: ${JSON.stringify(config.businessHours)}
 Preguntas frecuentes: ${JSON.stringify(config.faqs)}
 Políticas: ${JSON.stringify(config.policies)}${contextText ? `\n${contextText}` : ''}
+${tablesListStr}
 
 REGLAS IMPORTANTES:
 1. Responde SIEMPRE en español.
 2. Sé amable, profesional y conciso.
 3. Cuando un cliente quiere una cita, usa las herramientas disponibles.
-4. Si no puedes ayudar, solicita la transferencia a un humano.
-5. No inventes información; si no la tienes, pregunta al cliente.`
+4. Si el cliente tiene preguntas sobre cuentas de ahorro, créditos/préstamos, sucursales, cajeros (ATMs), horarios, vacantes de empleo, seguros/protecciones o soporte técnico, debes buscar o consultar la información correspondiente utilizando la herramienta "search_database_table" o "query_database_table". Nunca inventes información de estos temas.
+5. Si no puedes ayudar, solicita la transferencia a un humano.
+6. No inventes información; si no la tienes, pregunta al cliente.`
 
   // Load conversation history
   const history = await prisma.message.findMany({

@@ -80,4 +80,48 @@ export const AGENT_TOOLS: Tool[] = [
       required: ['reason'],
     },
   },
+  {
+    name: 'search_database_table',
+    description:
+      'Busca registros en una tabla específica de la base de datos de la cooperativa filtrando por coincidencia de texto.',
+    parameters: {
+      type: 'object',
+      properties: {
+        table: {
+          type: 'string',
+          description:
+            'El nombre de la tabla en la que se desea buscar (ej. "tabla_atm", "tablas_credito", "tabla_ahorro").',
+        },
+        query: {
+          type: 'string',
+          description: 'El término de búsqueda o palabra clave para filtrar los registros.',
+        },
+        limit: {
+          type: 'number',
+          description: 'El límite máximo de resultados a retornar. Por defecto es 5.',
+        },
+      },
+      required: ['table', 'query'],
+    },
+  },
+  {
+    name: 'query_database_table',
+    description:
+      'Consulta registros completos de una tabla específica de la base de datos de la cooperativa de forma secuencial sin filtros de búsqueda.',
+    parameters: {
+      type: 'object',
+      properties: {
+        table: {
+          type: 'string',
+          description:
+            'El nombre de la tabla a consultar (ej. "tabla_ahorro", "tabla_promociones").',
+        },
+        limit: {
+          type: 'number',
+          description: 'El límite máximo de resultados a retornar. Por defecto es 10.',
+        },
+      },
+      required: ['table'],
+    },
+  },
 ]
