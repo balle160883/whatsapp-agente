@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import { safeDecrypt } from '@/lib/encryption'
-import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import {
+  sendWhatsAppMessage,
+  sendWhatsAppInteractiveMessage,
+  parseTextToInteractive,
+} from '@/lib/whatsapp'
 import { runAgent } from '@/lib/ai/agent'
 import { processFeedbackResponse } from '@/lib/feedback'
 import { processReminderResponse } from '@/lib/reminder'
@@ -287,13 +291,37 @@ export async function processIncomingMessage(msg: IncomingMessage): Promise<void
   }
 
   try {
-    await sendWhatsAppMessage({
-      phoneNumberId: msg.phoneNumberId,
-      accessToken,
-      to: msg.from,
-      text: agentResponse,
-    })
-    log('info', 'Response sent via WhatsApp', { to: msg.from })
+    let sentInteractive = false
+    const interactiveContent = parseTextToInteractive(agentResponse)
+
+    if (interactiveContent) {
+      try {
+        await sendWhatsAppInteractiveMessage({
+          phoneNumberId: msg.phoneNumberId,
+          accessToken,
+          to: msg.from,
+          bodyText: interactiveContent.bodyText,
+          buttons: interactiveContent.buttons,
+          list: interactiveContent.list,
+        })
+        sentInteractive = true
+        log('info', 'Response sent as interactive via WhatsApp', { to: msg.from })
+      } catch (error) {
+        log('error', 'Failed to send interactive message, falling back to text', {
+          error: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+
+    if (!sentInteractive) {
+      await sendWhatsAppMessage({
+        phoneNumberId: msg.phoneNumberId,
+        accessToken,
+        to: msg.from,
+        text: agentResponse,
+      })
+      log('info', 'Response sent via WhatsApp', { to: msg.from })
+    }
   } catch (error) {
     log('error', 'Failed to send WhatsApp message', {
       error: error instanceof Error ? error.message : String(error),

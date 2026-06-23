@@ -67,8 +67,43 @@ export default function PersonalizacionPage() {
   const [newDocContent, setNewDocContent] = useState('')
   const [addingDoc, setAddingDoc] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+
+  const uploadBinaryFile = async (file: File) => {
+    setUploadingFile(true)
+    setUploadError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await fetch('/api/knowledge-base', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!res.ok) {
+        const errData = (await res.json()) as { error?: string }
+        throw new Error(errData.error || 'Error al procesar el archivo')
+      }
+
+      await fetchDocuments()
+    } catch (e: unknown) {
+      console.error(e)
+      const message = e instanceof Error ? e.message : 'Error al subir el archivo'
+      setUploadError(message)
+    } finally {
+      setUploadingFile(false)
+    }
+  }
 
   const handleFileImport = (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext === 'pdf' || ext === 'docx' || ext === 'xlsx') {
+      void uploadBinaryFile(file)
+      return
+    }
+
     const reader = new FileReader()
     reader.onload = (e) => {
       const text = e.target?.result as string
@@ -146,7 +181,6 @@ export default function PersonalizacionPage() {
 
   useEffect(() => {
     void fetchConfig()
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchDocuments()
   }, [fetchConfig, fetchDocuments])
 
@@ -631,13 +665,13 @@ export default function PersonalizacionPage() {
               <div
                 onDragOver={(e) => {
                   e.preventDefault()
-                  setDragOver(true)
+                  if (!uploadingFile) setDragOver(true)
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => {
                   e.preventDefault()
                   setDragOver(false)
-                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  if (!uploadingFile && e.dataTransfer.files && e.dataTransfer.files[0]) {
                     handleFileImport(e.dataTransfer.files[0])
                   }
                 }}
@@ -649,44 +683,78 @@ export default function PersonalizacionPage() {
                   borderRadius: 'var(--radius-md)',
                   textAlign: 'center',
                   marginBottom: '1rem',
-                  cursor: 'pointer',
+                  cursor: uploadingFile ? 'not-allowed' : 'pointer',
                   transition: 'all 0.2s',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '0.5rem',
                 }}
-                onClick={() => document.getElementById('file-upload-input')?.click()}
+                onClick={() => {
+                  if (!uploadingFile) {
+                    document.getElementById('file-upload-input')?.click()
+                  }
+                }}
               >
-                <UploadSimple
-                  size={24}
-                  color={dragOver ? 'var(--color-brand-400)' : 'var(--color-text-secondary)'}
-                />
-                <div>
-                  <span
+                {uploadingFile ? (
+                  <div
                     style={{
-                      fontSize: '0.8125rem',
-                      fontWeight: 600,
-                      color: 'var(--color-text-primary)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.5rem',
                     }}
                   >
-                    Arrastra un archivo aquí o haz clic para subir
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      color: 'var(--color-text-muted)',
-                      display: 'block',
-                      marginTop: '2px',
-                    }}
-                  >
-                    TXT, MD, CSV, JSON o archivos de texto
-                  </span>
-                </div>
+                    <CircleNotch
+                      size={24}
+                      color="var(--color-brand-500)"
+                      style={{ animation: 'spin 0.8s linear infinite' }}
+                    />
+                    <span
+                      style={{
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      Procesando e indexando archivo...
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <UploadSimple
+                      size={24}
+                      color={dragOver ? 'var(--color-brand-400)' : 'var(--color-text-secondary)'}
+                    />
+                    <div>
+                      <span
+                        style={{
+                          fontSize: '0.8125rem',
+                          fontWeight: 600,
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        Arrastra un archivo aquí o haz clic para subir
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--color-text-muted)',
+                          display: 'block',
+                          marginTop: '2px',
+                        }}
+                      >
+                        PDF, DOCX, XLSX o archivos de texto (TXT, MD, CSV)
+                      </span>
+                    </div>
+                  </>
+                )}
                 <input
                   id="file-upload-input"
                   type="file"
-                  accept=".txt,.md,.csv,.json,.xml,.html"
+                  accept=".txt,.md,.csv,.json,.xml,.html,.pdf,.docx,.xlsx"
+                  disabled={uploadingFile}
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
                       handleFileImport(e.target.files[0])
@@ -695,6 +763,18 @@ export default function PersonalizacionPage() {
                   style={{ display: 'none' }}
                 />
               </div>
+              {uploadError && (
+                <div
+                  style={{
+                    color: '#ef4444',
+                    fontSize: '0.75rem',
+                    marginBottom: '1rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  {uploadError}
+                </div>
+              )}
 
               <input
                 className="input"

@@ -3,6 +3,8 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { createAuditEvent } from '@/lib/audit'
+import { parseFile } from '@/lib/file-parser'
+import { chunkText } from '@/lib/chunking'
 
 const documentSchema = z.object({
   title: z.string().min(2, 'El título debe tener al menos 2 caracteres'),
@@ -34,6 +36,67 @@ export async function POST(req: NextRequest) {
   }
 
   const { organizationId, id: userId } = session.user
+  const contentType = req.headers.get('content-type') || ''
+
+  if (contentType.includes('multipart/form-data')) {
+    try {
+      const formData = await req.formData()
+      const file = formData.get('file') as File | null
+
+      if (!file) {
+        return NextResponse.json({ error: 'No se recibió ningún archivo' }, { status: 400 })
+      }
+
+      const fileName = file.name
+      const fileType = file.type || fileName.split('.').pop() || ''
+      const arrayBuffer = await file.arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+
+      // Parse file
+      const rawText = await parseFile(buffer, fileType)
+
+      if (!rawText || rawText.trim().length === 0) {
+        return NextResponse.json({ error: 'El archivo no contiene texto legible' }, { status: 400 })
+      }
+
+      // Chunk text
+      const chunks = chunkText(rawText)
+
+      if (chunks.length === 0) {
+        return NextResponse.json(
+          { error: 'No se pudieron generar fragmentos de texto' },
+          { status: 400 }
+        )
+      }
+
+      // Batch save chunks as KnowledgeBase documents
+      const dataToInsert = chunks.map((chunk, index) => ({
+        organizationId,
+        title: `${fileName} - Parte ${index + 1}`,
+        content: chunk,
+      }))
+
+      await prisma.knowledgeBase.createMany({
+        data: dataToInsert,
+      })
+
+      // Audit log
+      await createAuditEvent({
+        organizationId,
+        userId,
+        action: 'KNOWLEDGE_BASE_UPLOADED',
+        entity: 'KnowledgeBase',
+        details: { fileName, chunksCount: chunks.length },
+      })
+
+      return NextResponse.json({ success: true, count: chunks.length })
+    } catch (error: unknown) {
+      console.error('Error processing uploaded file:', error)
+      const errMessage =
+        error instanceof Error ? error.message : 'Error interno del servidor al procesar el archivo'
+      return NextResponse.json({ error: errMessage }, { status: 500 })
+    }
+  }
 
   try {
     const body = await req.json()

@@ -3,7 +3,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
-import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { sendWhatsAppMessage, sendWhatsAppTemplate } from '@/lib/whatsapp'
 import { safeDecrypt } from '@/lib/encryption'
 import { createAuditEvent, AUDIT_ACTIONS } from '@/lib/audit'
 import { sendHandoffNotification } from '@/lib/notifications'
@@ -135,9 +135,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const { organizationId, id: userId } = session.user
 
-  const body = (await req.json()) as { message?: string; isInternal?: boolean }
-  if (!body.message?.trim()) {
-    return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+  const body = (await req.json()) as {
+    message?: string
+    isInternal?: boolean
+    templateName?: string
+    languageCode?: string
+    templateText?: string
+  }
+
+  if (!body.message?.trim() && !body.templateName?.trim()) {
+    return NextResponse.json({ error: 'Message or templateName is required' }, { status: 400 })
   }
 
   // Verify conversation ownership
@@ -158,7 +165,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         conversationId: id,
         direction: 'OUTGOING',
         sender: 'HUMAN',
-        content: body.message,
+        content: body.message || '',
         metadata: { isInternal: true } as Prisma.InputJsonValue,
       },
     })
@@ -177,13 +184,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: 'Invalid WhatsApp credentials' }, { status: 400 })
     }
 
-    // Send via WhatsApp
-    await sendWhatsAppMessage({
-      phoneNumberId: waConfig.phoneNumberId,
-      accessToken,
-      to: conversation.contact.phone,
-      text: body.message,
-    })
+    const msgContent = body.templateText || body.message || ''
+
+    if (body.templateName) {
+      // Send template via WhatsApp
+      await sendWhatsAppTemplate({
+        phoneNumberId: waConfig.phoneNumberId,
+        accessToken,
+        to: conversation.contact.phone,
+        templateName: body.templateName,
+        languageCode: body.languageCode || 'es',
+      })
+    } else {
+      // Send regular message via WhatsApp
+      await sendWhatsAppMessage({
+        phoneNumberId: waConfig.phoneNumberId,
+        accessToken,
+        to: conversation.contact.phone,
+        text: body.message || '',
+      })
+    }
 
     // Save message to DB
     message = await prisma.message.create({
@@ -192,7 +212,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         conversationId: id,
         direction: 'OUTGOING',
         sender: 'HUMAN',
-        content: body.message,
+        content: msgContent,
+        metadata: body.templateName
+          ? ({ templateName: body.templateName } as Prisma.InputJsonValue)
+          : undefined,
       },
     })
   }
