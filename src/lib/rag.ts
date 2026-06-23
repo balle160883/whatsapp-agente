@@ -15,6 +15,52 @@ export async function getRagContext(orgId: string, query: string): Promise<RagCo
   }
 
   const cleanQuery = query.trim()
+
+  // Clean question marks and common Spanish stopwords for search query
+  const cleanedQueryForSearch =
+    cleanQuery
+      .replace(/[¿?¡!]/g, '')
+      .split(/\s+/)
+      .filter((word) => {
+        const lower = word.toLowerCase()
+        const stopwords = new Set([
+          'quien',
+          'quién',
+          'quienes',
+          'quiénes',
+          'como',
+          'cómo',
+          'cuando',
+          'cuándo',
+          'donde',
+          'dónde',
+          'porque',
+          'por',
+          'qué',
+          'que',
+          'cual',
+          'cuál',
+          'cuales',
+          'cuáles',
+          'es',
+          'son',
+          'un',
+          'una',
+          'el',
+          'la',
+          'los',
+          'las',
+          'de',
+          'del',
+          'para',
+          'en',
+          'con',
+          'sobre',
+        ])
+        return !stopwords.has(lower) && lower.length > 2
+      })
+      .join(' ') || cleanQuery // Fallback to original if completely empty
+
   const matchingTexts: string[] = []
   const sources: string[] = []
 
@@ -25,9 +71,9 @@ export async function getRagContext(orgId: string, query: string): Promise<RagCo
       FROM knowledge_bases 
       WHERE organization_id = ${orgId}::uuid
         AND (
-          to_tsvector('spanish', title || ' ' || content) @@ plainto_tsquery('spanish', ${cleanQuery})
-          OR title ILIKE ${`%${cleanQuery}%`}
-          OR content ILIKE ${`%${cleanQuery}%`}
+          to_tsvector('spanish', title || ' ' || content) @@ plainto_tsquery('spanish', ${cleanedQueryForSearch})
+          OR title ILIKE ${`%${cleanedQueryForSearch}%`}
+          OR content ILIKE ${`%${cleanedQueryForSearch}%`}
         )
       LIMIT 3
     `
